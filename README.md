@@ -1,6 +1,6 @@
 # AccuWeather Hourly Forecast - Culver City, CA
 
-A web application that displays hourly temperature and precipitation forecasts from AccuWeather for Culver City, California.
+A web application that displays hourly temperature and precipitation forecasts from AccuWeather for Culver City, California. The app scrapes data directly from AccuWeather's website instead of using their API.
 
 ## Features
 
@@ -9,40 +9,36 @@ A web application that displays hourly temperature and precipitation forecasts f
 - 📱 Responsive design
 - 🌙 Day/night mode styling
 - 🔄 Real-time data refresh
+- 🕷️ Web scraping (no API key required)
 
 ## Setup
 
-1. **Get an AccuWeather API Key**
-   - Visit [AccuWeather Developer Portal](https://developer.accuweather.com/)
-   - Sign up for a free account
-   - Create a new app to get your API key
-
-2. **Install Dependencies**
+1. **Install Dependencies**
    ```bash
    npm install
    ```
 
-3. **Configure Environment Variables**
+2. **Configure Environment Variables (Optional)**
    ```bash
    cp .env.example .env
    ```
-   Then edit `.env` and add your AccuWeather API key:
+   Edit `.env` to set a custom port if needed:
    ```
-   ACCUWEATHER_API_KEY=your_api_key_here
+   PORT=3000
    ```
 
-4. **Start the Server**
+3. **Start the Server**
    ```bash
    npm start
    ```
 
-5. **Open in Browser**
+4. **Open in Browser**
    Navigate to `http://localhost:3000`
 
 ## Project Structure
 
 ```
-├── server.js          # Express server with AccuWeather API integration
+├── server.js          # Express server with AccuWeather web scraping
 ├── public/
 │   ├── index.html     # Main HTML page
 │   ├── styles.css     # Styling
@@ -54,10 +50,12 @@ A web application that displays hourly temperature and precipitation forecasts f
 ## API Endpoints
 
 - `GET /` - Serves the main web page
-- `GET /api/hourly-forecast` - Returns hourly forecast data for Culver City, CA
+- `GET /api/hourly-forecast` - Returns hourly forecast data for Culver City, CA (scraped from AccuWeather)
 
 ## Notes
 
-- The app uses AccuWeather's free tier which has rate limits
-- Location key for Culver City, CA is hardcoded: `331292`
-- Forecast shows 12 hours of hourly data
+- The app scrapes data directly from AccuWeather's website using Puppeteer
+- No API key required
+- Location for Culver City, CA is hardcoded
+- Forecast shows up to 12 hours of hourly data
+- The scraping may be slower than API calls but doesn't require authentication
