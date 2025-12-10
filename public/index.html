@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AccuWeather - Culver City, CA</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🌤️ Hourly Weather Forecast</h1>
+            <h2>Culver City, CA</h2>
+        </header>
+
+        <div id="loading" class="loading">Loading weather data...</div>
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="weather-container" class="weather-container" style="display: none;">
+            <div class="weather-grid" id="weather-grid"></div>
+        </div>
+
+        <button id="refresh-btn" class="refresh-btn" onclick="fetchWeather()">🔄 Refresh</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
