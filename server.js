@@ -13,7 +13,7 @@ app.use(express.json());
 app.use(express.static('public'));
 
 // AccuWeather URL for Culver City hourly forecast
-const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90230/hourly-weather-forecast/331292';
+const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/337230';
 
 // Initialize browser instance (reused for better performance)
 let browser = null;
