@@ -22,7 +22,12 @@ async function initBrowser() {
   if (!browser) {
     browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox', 
+        '--disable-setuid-sandbox',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage'
+      ]
     });
   }
   return browser;
@@ -35,22 +40,43 @@ app.get('/api/hourly-forecast', async (req, res) => {
     const browserInstance = await initBrowser();
     page = await browserInstance.newPage();
     
-    // Set user agent to avoid blocking
+    // Set user agent and viewport to avoid blocking
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1920, height: 1080 });
+    
+    // Set extra headers to appear more like a real browser
+    await page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1'
+    });
     
     // Navigate to AccuWeather page
     await page.goto(ACCUWEATHER_URL, { 
       waitUntil: 'networkidle2',
-      timeout: 30000 
+      timeout: 60000 
     });
 
-    // Wait for the hourly forecast data to load - try multiple selectors
-    await page.waitForFunction(() => {
-      return document.querySelector('.hourly-card') || 
-             document.querySelector('[data-qa="hourlyCard"]') ||
-             document.querySelector('.hourly-list-item') ||
-             document.querySelector('.hourly-wrapper .card');
-    }, { timeout: 15000 });
+    // Wait a bit for dynamic content to load
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Wait for the hourly forecast data to load - try multiple selectors with longer timeout
+    try {
+      await page.waitForFunction(() => {
+        return document.querySelector('.hourly-card') || 
+               document.querySelector('[data-qa="hourlyCard"]') ||
+               document.querySelector('.hourly-list-item') ||
+               document.querySelector('.hourly-wrapper .card') ||
+               document.querySelector('.hourly-forecast') ||
+               document.querySelector('[class*="hourly"]') ||
+               document.querySelector('[class*="Hourly"]');
+      }, { timeout: 30000 });
+    } catch (waitError) {
+      // If waiting fails, try to continue anyway - maybe the data is already there
+      console.warn('Wait for selectors timed out, attempting to extract data anyway...');
+    }
 
     // Extract hourly forecast data
     const forecastData = await page.evaluate(() => {
@@ -64,6 +90,16 @@ app.get('/api/hourly-forecast', async (req, res) => {
       }
       if (cards.length === 0) {
         cards = Array.from(document.querySelectorAll('.hourly-wrapper .card'));
+      }
+      if (cards.length === 0) {
+        cards = Array.from(document.querySelectorAll('.hourly-forecast .card'));
+      }
+      if (cards.length === 0) {
+        // Try to find any element with "hourly" in class name
+        const allElements = document.querySelectorAll('[class*="hourly"], [class*="Hourly"]');
+        cards = Array.from(allElements).filter(el => 
+          el.textContent && el.textContent.trim().length > 0
+        );
       }
       
       // Limit to 12 hours
@@ -211,6 +247,10 @@ app.get('/api/hourly-forecast', async (req, res) => {
 
     await page.close();
 
+    if (forecastData.length === 0) {
+      throw new Error('No forecast data found on page. The page structure may have changed.');
+    }
+
     res.json({
       location: 'Culver City, CA',
       forecast: forecastData
@@ -220,8 +260,9 @@ app.get('/api/hourly-forecast', async (req, res) => {
       await page.close().catch(() => {});
     }
     console.error('Error scraping AccuWeather data:', error.message);
+    console.error('Full error:', error);
     res.status(500).json({ 
-      error: 'Failed to fetch weather data from AccuWeather. Please try again later.' 
+      error: `Failed to fetch weather data from AccuWeather: ${error.message}. Please try again later.` 
     });
   }
 });
