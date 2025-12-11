@@ -171,72 +171,79 @@ app.get('/api/hourly-forecast', async (req, res) => {
         }
         
         // Extract temperature - try multiple selectors
+        // AccuWeather shows actual temperature AND RealFeel - we need the actual temp only
         let temperature = null;
+        
+        // First, try to find the main temperature element specifically
+        // AccuWeather uses various selectors for the main temperature display
         const tempSelectors = [
           '.temp',
           '.temperature',
           '[data-qa="temperature"]',
           '.hourly-temp',
-          '.temp-value'
+          '.temp-value',
+          '.temp-hi',
+          '.hourly-card__temp'
         ];
+        
         for (const selector of tempSelectors) {
           const elem = card.querySelector(selector);
           if (elem) {
-            const tempText = elem.textContent.trim();
-            // Look for all temperature patterns with degree symbol (e.g., "73°" or "72° / 85°")
-            // Match all numbers followed by degree symbol
-            const allTempMatches = tempText.match(/(\d+)\s*°[Ff]?/g);
-            if (allTempMatches && allTempMatches.length > 0) {
-              // Extract all temperature values
-              const temps = allTempMatches.map(match => {
-                const numMatch = match.match(/(\d+)/);
-                return numMatch ? parseInt(numMatch[1]) : null;
-              }).filter(t => t !== null && t >= 20 && t <= 120);
-              
-              if (temps.length > 0) {
-                // Take the first temperature value - AccuWeather shows actual temp first,
-                // followed by RealFeel or other metrics
-                temperature = temps[0];
-                break;
-              }
-            }
+            // Make sure this element is NOT inside a RealFeel section
+            const parentText = elem.parentElement ? elem.parentElement.textContent.toLowerCase() : '';
+            const isRealFeel = parentText.includes('realfeel') || parentText.includes('real feel');
             
-            // Fallback: if no degree symbol pattern, try to find numbers
-            const numbers = tempText.match(/\d+/g);
-            if (numbers && numbers.length > 0) {
-              const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
-              if (validTemps.length > 0) {
-                // Take the first valid temperature value
-                temperature = validTemps[0];
-                break;
+            if (!isRealFeel) {
+              const tempText = elem.textContent.trim();
+              const tempMatch = tempText.match(/(\d+)\s*°/);
+              if (tempMatch) {
+                const temp = parseInt(tempMatch[1]);
+                if (temp >= 20 && temp <= 120) {
+                  temperature = temp;
+                  break;
+                }
               }
             }
           }
         }
         
-        // If still no temperature found, try searching the entire card text
+        // If still no temperature found, parse the card text more carefully
+        // We need to get the temperature that appears BEFORE "RealFeel" text
         if (temperature === null) {
           const cardText = card.textContent || card.innerText || '';
-          // Look for all temperature patterns in the entire card
-          const allTempMatches = cardText.match(/(\d+)\s*°[Ff]?/g);
+          
+          // Find where "RealFeel" appears in the text
+          const realFeelIndex = cardText.toLowerCase().indexOf('realfeel');
+          const realFeelIndex2 = cardText.toLowerCase().indexOf('real feel');
+          const realFeelPos = realFeelIndex >= 0 ? realFeelIndex : 
+                              (realFeelIndex2 >= 0 ? realFeelIndex2 : cardText.length);
+          
+          // Get the text BEFORE RealFeel - this contains the actual temperature
+          const textBeforeRealFeel = cardText.substring(0, realFeelPos);
+          
+          // Find the LAST temperature in the text before RealFeel
+          // (the actual temp is usually the prominent one, appearing after time but before RealFeel)
+          const allTempMatches = textBeforeRealFeel.match(/(\d+)\s*°/g);
           if (allTempMatches && allTempMatches.length > 0) {
-            const temps = allTempMatches.map(match => {
-              const numMatch = match.match(/(\d+)/);
-              return numMatch ? parseInt(numMatch[1]) : null;
-            }).filter(t => t !== null && t >= 20 && t <= 120);
-            
-            if (temps.length > 0) {
-              // Take the first temperature value - AccuWeather shows actual temp first
-              temperature = temps[0];
+            // Get the last temperature before RealFeel - this is typically the main display temp
+            const lastMatch = allTempMatches[allTempMatches.length - 1];
+            const numMatch = lastMatch.match(/(\d+)/);
+            if (numMatch) {
+              const temp = parseInt(numMatch[1]);
+              if (temp >= 20 && temp <= 120) {
+                temperature = temp;
+              }
             }
-          } else {
-            // Try to find numbers that look like temperatures
-            const numbers = cardText.match(/\d+/g);
+          }
+          
+          // Fallback: if still no temperature, try to find any valid temperature
+          if (temperature === null) {
+            const numbers = textBeforeRealFeel.match(/\d+/g);
             if (numbers) {
               const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
               if (validTemps.length > 0) {
-                // Take the first valid temperature value
-                temperature = validTemps[0];
+                // Take the last valid temperature value before RealFeel
+                temperature = validTemps[validTemps.length - 1];
               }
             }
           }
