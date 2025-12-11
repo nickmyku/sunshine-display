@@ -59,6 +59,7 @@ async function fetchWeather() {
     const errorEl = document.getElementById('error');
     const containerEl = document.getElementById('weather-container');
     const gridEl = document.getElementById('weather-grid');
+    const locationEl = document.getElementById('location-name');
 
     // Show loading, hide others
     loadingEl.style.display = 'block';
@@ -71,6 +72,12 @@ async function fetchWeather() {
 
         if (!response.ok) {
             throw new Error(data.error || 'Failed to fetch weather data');
+        }
+
+        // Update the location name from scraped data
+        if (data.location) {
+            locationEl.textContent = data.location;
+            document.title = `Weather - ${data.location}`;
         }
 
         // Clear previous data
@@ -90,6 +97,7 @@ async function fetchWeather() {
         loadingEl.style.display = 'none';
         errorEl.textContent = error.message;
         errorEl.style.display = 'block';
+        locationEl.textContent = 'Location unavailable';
     }
 }
 

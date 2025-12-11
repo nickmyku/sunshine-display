@@ -78,6 +78,51 @@ app.get('/api/hourly-forecast', async (req, res) => {
       console.warn('Wait for selectors timed out, attempting to extract data anyway...');
     }
 
+    // Extract the city/location name from the page
+    const locationName = await page.evaluate(() => {
+      // Try multiple selectors to find the location name
+      const locationSelectors = [
+        '.subnav-title',
+        '.header-city-link',
+        '.current-city',
+        '[data-qa="headerLocation"]',
+        '.location-name',
+        '.header-loc',
+        'h1.location',
+        '.subnav .title',
+        '.header .location'
+      ];
+      
+      for (const selector of locationSelectors) {
+        const elem = document.querySelector(selector);
+        if (elem && elem.textContent.trim()) {
+          return elem.textContent.trim();
+        }
+      }
+      
+      // Try to find location in the page title or meta tags
+      const pageTitle = document.title;
+      if (pageTitle) {
+        // AccuWeather titles are typically like "City Name Weather - AccuWeather"
+        const titleMatch = pageTitle.match(/^(.+?)\s*(?:Weather|Hourly|Daily|Forecast)/i);
+        if (titleMatch) {
+          return titleMatch[1].trim();
+        }
+      }
+      
+      // Fallback: look for any header element with location-like content
+      const headers = document.querySelectorAll('h1, h2, .header-title');
+      for (const header of headers) {
+        const text = header.textContent.trim();
+        // Check if it looks like a location (contains city-like patterns)
+        if (text && text.length < 100 && !text.toLowerCase().includes('hourly') && !text.toLowerCase().includes('forecast')) {
+          return text;
+        }
+      }
+      
+      return null;
+    });
+
     // Extract hourly forecast data
     const forecastData = await page.evaluate(() => {
       // Try multiple selectors to find hourly cards
@@ -302,9 +347,12 @@ app.get('/api/hourly-forecast', async (req, res) => {
       throw new Error('No forecast data found on page. The page structure may have changed.');
     }
 
+    // Use scraped location or fallback to URL-based name
+    const scrapedLocation = locationName || 'Unknown Location';
+
     // Debug: Display scraped temperatures in command line
     console.log('\n========== SCRAPED TEMPERATURES ==========');
-    console.log(`Location: Culver City, CA`);
+    console.log(`Location: ${scrapedLocation}`);
     console.log(`Timestamp: ${new Date().toISOString()}`);
     console.log(`Found ${forecastData.length} hourly forecasts:\n`);
     forecastData.forEach((hour, index) => {
@@ -316,7 +364,7 @@ app.get('/api/hourly-forecast', async (req, res) => {
     console.log('===========================================\n');
 
     res.json({
-      location: 'Culver City, CA',
+      location: scrapedLocation,
       forecast: forecastData
     });
   } catch (error) {
