@@ -138,7 +138,7 @@ app.get('/api/hourly-forecast', async (req, res) => {
           const elem = card.querySelector(selector);
           if (elem) {
             const tempText = elem.textContent.trim();
-            // Look for all temperature patterns with degree symbol (e.g., "73°" or "47° / 73°")
+            // Look for all temperature patterns with degree symbol (e.g., "73°" or "72° / 85°")
             // Match all numbers followed by degree symbol
             const allTempMatches = tempText.match(/(\d+)\s*°[Ff]?/g);
             if (allTempMatches && allTempMatches.length > 0) {
@@ -149,9 +149,9 @@ app.get('/api/hourly-forecast', async (req, res) => {
               }).filter(t => t !== null && t >= 20 && t <= 120);
               
               if (temps.length > 0) {
-                // If multiple temperatures found, prefer the higher one (usually the actual temp)
-                // AccuWeather often shows "feels like" or other metrics as lower values
-                temperature = Math.max(...temps);
+                // Take the first temperature value - AccuWeather shows actual temp first,
+                // followed by RealFeel or other metrics
+                temperature = temps[0];
                 break;
               }
             }
@@ -161,7 +161,8 @@ app.get('/api/hourly-forecast', async (req, res) => {
             if (numbers && numbers.length > 0) {
               const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
               if (validTemps.length > 0) {
-                temperature = Math.max(...validTemps);
+                // Take the first valid temperature value
+                temperature = validTemps[0];
                 break;
               }
             }
@@ -180,7 +181,8 @@ app.get('/api/hourly-forecast', async (req, res) => {
             }).filter(t => t !== null && t >= 20 && t <= 120);
             
             if (temps.length > 0) {
-              temperature = Math.max(...temps);
+              // Take the first temperature value - AccuWeather shows actual temp first
+              temperature = temps[0];
             }
           } else {
             // Try to find numbers that look like temperatures
@@ -188,7 +190,8 @@ app.get('/api/hourly-forecast', async (req, res) => {
             if (numbers) {
               const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
               if (validTemps.length > 0) {
-                temperature = Math.max(...validTemps);
+                // Take the first valid temperature value
+                temperature = validTemps[0];
               }
             }
           }
