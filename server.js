@@ -125,26 +125,21 @@ app.get('/api/hourly-forecast', async (req, res) => {
 
     // Extract hourly forecast data
     const forecastData = await page.evaluate(() => {
-      // Try multiple selectors to find hourly cards
-      let cards = Array.from(document.querySelectorAll('.hourly-card'));
+      // AccuWeather uses .accordion-item.hour for each hourly forecast card
+      let cards = Array.from(document.querySelectorAll('.accordion-item.hour'));
+      
+      // Fallback selectors if the primary one doesn't work
+      if (cards.length === 0) {
+        cards = Array.from(document.querySelectorAll('[data-qa].hour'));
+      }
+      if (cards.length === 0) {
+        cards = Array.from(document.querySelectorAll('.hourly-card'));
+      }
       if (cards.length === 0) {
         cards = Array.from(document.querySelectorAll('[data-qa="hourlyCard"]'));
       }
       if (cards.length === 0) {
         cards = Array.from(document.querySelectorAll('.hourly-list-item'));
-      }
-      if (cards.length === 0) {
-        cards = Array.from(document.querySelectorAll('.hourly-wrapper .card'));
-      }
-      if (cards.length === 0) {
-        cards = Array.from(document.querySelectorAll('.hourly-forecast .card'));
-      }
-      if (cards.length === 0) {
-        // Try to find any element with "hourly" in class name
-        const allElements = document.querySelectorAll('[class*="hourly"], [class*="Hourly"]');
-        cards = Array.from(allElements).filter(el => 
-          el.textContent && el.textContent.trim().length > 0
-        );
       }
       
       // Limit to 12 hours
@@ -153,9 +148,12 @@ app.get('/api/hourly-forecast', async (req, res) => {
       const now = new Date();
       
       return cards.map((card, index) => {
-        // Extract time - try multiple selectors
+        // Extract time from h2.date or other time elements
         let timeText = '';
         const timeSelectors = [
+          'h2.date',
+          'h2.date > div',
+          '.date',
           '.hourly-card-header .time',
           '.time',
           '[data-qa="time"]',
@@ -170,73 +168,43 @@ app.get('/api/hourly-forecast', async (req, res) => {
           }
         }
         
-        // Extract temperature - try multiple selectors
+        // Extract actual temperature - specifically from .temp element that's NOT inside .real-feel
         let temperature = null;
-        const tempSelectors = [
-          '.temp',
-          '.temperature',
-          '[data-qa="temperature"]',
-          '.hourly-temp',
-          '.temp-value'
-        ];
-        for (const selector of tempSelectors) {
-          const elem = card.querySelector(selector);
-          if (elem) {
-            const tempText = elem.textContent.trim();
-            // Look for all temperature patterns with degree symbol (e.g., "73°" or "72° / 85°")
-            // Match all numbers followed by degree symbol
-            const allTempMatches = tempText.match(/(\d+)\s*°[Ff]?/g);
-            if (allTempMatches && allTempMatches.length > 0) {
-              // Extract all temperature values
-              const temps = allTempMatches.map(match => {
-                const numMatch = match.match(/(\d+)/);
-                return numMatch ? parseInt(numMatch[1]) : null;
-              }).filter(t => t !== null && t >= 20 && t <= 120);
-              
-              if (temps.length > 0) {
-                // Take the first temperature value - AccuWeather shows actual temp first,
-                // followed by RealFeel or other metrics
-                temperature = temps[0];
-                break;
-              }
-            }
-            
-            // Fallback: if no degree symbol pattern, try to find numbers
-            const numbers = tempText.match(/\d+/g);
-            if (numbers && numbers.length > 0) {
-              const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
-              if (validTemps.length > 0) {
-                // Take the first valid temperature value
-                temperature = validTemps[0];
-                break;
-              }
-            }
+        
+        // First, try to get the direct .temp element that's not inside .real-feel
+        const tempElem = card.querySelector('.hourly-card-subcontaint > .temp, .hourly-card-top .temp:not(.real-feel .temp)');
+        if (tempElem) {
+          const tempText = tempElem.textContent.trim();
+          const tempMatch = tempText.match(/(\d+)\s*°/);
+          if (tempMatch) {
+            temperature = parseInt(tempMatch[1]);
           }
         }
         
-        // If still no temperature found, try searching the entire card text
+        // If not found, try other selectors but exclude .real-feel elements
         if (temperature === null) {
-          const cardText = card.textContent || card.innerText || '';
-          // Look for all temperature patterns in the entire card
-          const allTempMatches = cardText.match(/(\d+)\s*°[Ff]?/g);
-          if (allTempMatches && allTempMatches.length > 0) {
-            const temps = allTempMatches.map(match => {
-              const numMatch = match.match(/(\d+)/);
-              return numMatch ? parseInt(numMatch[1]) : null;
-            }).filter(t => t !== null && t >= 20 && t <= 120);
-            
-            if (temps.length > 0) {
-              // Take the first temperature value - AccuWeather shows actual temp first
-              temperature = temps[0];
-            }
-          } else {
-            // Try to find numbers that look like temperatures
-            const numbers = cardText.match(/\d+/g);
-            if (numbers) {
-              const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
-              if (validTemps.length > 0) {
-                // Take the first valid temperature value
-                temperature = validTemps[0];
+          const tempSelectors = [
+            '.temp',
+            '.temperature',
+            '[data-qa="temperature"]',
+            '.hourly-temp',
+            '.temp-value'
+          ];
+          for (const selector of tempSelectors) {
+            const elem = card.querySelector(selector);
+            if (elem) {
+              // Make sure this element is not inside a .real-feel container
+              const isInsideRealFeel = elem.closest('.real-feel') !== null;
+              if (isInsideRealFeel) continue;
+              
+              const tempText = elem.textContent.trim();
+              const tempMatch = tempText.match(/(\d+)\s*°/);
+              if (tempMatch) {
+                const temp = parseInt(tempMatch[1]);
+                if (temp >= 0 && temp <= 150) {
+                  temperature = temp;
+                  break;
+                }
               }
             }
           }
@@ -305,11 +273,18 @@ app.get('/api/hourly-forecast', async (req, res) => {
         // Parse time to determine hour
         let hour24 = now.getHours() + index;
         if (timeText) {
-          const hourMatch = timeText.match(/(\d+):/);
+          // AccuWeather uses format like "3 PM" or "3:00 PM"
+          const hourMatch = timeText.match(/(\d+)(?::\d+)?\s*(AM|PM)?/i);
           if (hourMatch) {
             let hour = parseInt(hourMatch[1]);
-            const isPM = timeText.toUpperCase().includes('PM');
-            hour24 = isPM && hour !== 12 ? hour + 12 : (!isPM && hour === 12 ? 0 : hour);
+            const period = hourMatch[2] ? hourMatch[2].toUpperCase() : null;
+            if (period === 'PM' && hour !== 12) {
+              hour24 = hour + 12;
+            } else if (period === 'AM' && hour === 12) {
+              hour24 = 0;
+            } else if (period) {
+              hour24 = hour;
+            }
           }
         }
         
