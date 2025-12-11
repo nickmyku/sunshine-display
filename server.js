@@ -302,6 +302,19 @@ app.get('/api/hourly-forecast', async (req, res) => {
       throw new Error('No forecast data found on page. The page structure may have changed.');
     }
 
+    // Debug: Display scraped temperatures in command line
+    console.log('\n========== SCRAPED TEMPERATURES ==========');
+    console.log(`Location: Culver City, CA`);
+    console.log(`Timestamp: ${new Date().toISOString()}`);
+    console.log(`Found ${forecastData.length} hourly forecasts:\n`);
+    forecastData.forEach((hour, index) => {
+      const date = new Date(hour.datetime);
+      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      console.log(`  ${index + 1}. ${dateStr} ${timeStr}: ${hour.temperature}°${hour.temperatureUnit} - ${hour.iconPhrase} (Precip: ${hour.precipitation}%)`);
+    });
+    console.log('===========================================\n');
+
     res.json({
       location: 'Culver City, CA',
       forecast: forecastData
