@@ -138,10 +138,58 @@ app.get('/api/hourly-forecast', async (req, res) => {
           const elem = card.querySelector(selector);
           if (elem) {
             const tempText = elem.textContent.trim();
-            const tempMatch = tempText.match(/(\d+)/);
-            if (tempMatch) {
-              temperature = parseInt(tempMatch[1]);
-              break;
+            // Look for all temperature patterns with degree symbol (e.g., "73°" or "47° / 73°")
+            // Match all numbers followed by degree symbol
+            const allTempMatches = tempText.match(/(\d+)\s*°[Ff]?/g);
+            if (allTempMatches && allTempMatches.length > 0) {
+              // Extract all temperature values
+              const temps = allTempMatches.map(match => {
+                const numMatch = match.match(/(\d+)/);
+                return numMatch ? parseInt(numMatch[1]) : null;
+              }).filter(t => t !== null && t >= 20 && t <= 120);
+              
+              if (temps.length > 0) {
+                // If multiple temperatures found, prefer the higher one (usually the actual temp)
+                // AccuWeather often shows "feels like" or other metrics as lower values
+                temperature = Math.max(...temps);
+                break;
+              }
+            }
+            
+            // Fallback: if no degree symbol pattern, try to find numbers
+            const numbers = tempText.match(/\d+/g);
+            if (numbers && numbers.length > 0) {
+              const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
+              if (validTemps.length > 0) {
+                temperature = Math.max(...validTemps);
+                break;
+              }
+            }
+          }
+        }
+        
+        // If still no temperature found, try searching the entire card text
+        if (temperature === null) {
+          const cardText = card.textContent || card.innerText || '';
+          // Look for all temperature patterns in the entire card
+          const allTempMatches = cardText.match(/(\d+)\s*°[Ff]?/g);
+          if (allTempMatches && allTempMatches.length > 0) {
+            const temps = allTempMatches.map(match => {
+              const numMatch = match.match(/(\d+)/);
+              return numMatch ? parseInt(numMatch[1]) : null;
+            }).filter(t => t !== null && t >= 20 && t <= 120);
+            
+            if (temps.length > 0) {
+              temperature = Math.max(...temps);
+            }
+          } else {
+            // Try to find numbers that look like temperatures
+            const numbers = cardText.match(/\d+/g);
+            if (numbers) {
+              const validTemps = numbers.map(n => parseInt(n)).filter(n => n >= 20 && n <= 120);
+              if (validTemps.length > 0) {
+                temperature = Math.max(...validTemps);
+              }
             }
           }
         }
