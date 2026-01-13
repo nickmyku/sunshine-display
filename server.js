@@ -1,6 +1,8 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
@@ -11,11 +13,72 @@ require('dotenv').config();
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
-app.use(express.json());
+// Validate and parse PORT
+const PORT = (() => {
+  const port = parseInt(process.env.PORT, 10) || 3000;
+  if (port < 1 || port > 65535) {
+    console.error('Invalid PORT configuration. Using default port 3000.');
+    return 3000;
+  }
+  return port;
+})();
+
+// ===========================================
+// SECURITY MIDDLEWARE
+// ===========================================
+
+// Security headers via Helmet
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    },
+  },
+  crossOriginEmbedderPolicy: false, // Allow loading resources
+}));
+
+// CORS configuration - restrict to configured origins
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
+  : [`http://localhost:${PORT}`];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, or same-origin)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*')) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'OPTIONS'],
+  optionsSuccessStatus: 200
+}));
+
+// Rate limiting - prevent DoS attacks
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting to API routes
+app.use('/api/', apiLimiter);
+
+// Standard middleware
+app.use(express.json({ limit: '10kb' })); // Limit body size
 app.use(express.static('public'));
 
 // Serve screenshots directory as static files
@@ -589,9 +652,13 @@ app.get('/api/hourly-forecast', async (req, res) => {
 
     throw new Error('Failed to fetch weather data. Please try again later.');
   } catch (error) {
+    // Log detailed error server-side for debugging
     console.error('Error in /api/hourly-forecast:', error.message);
+    console.error('Stack trace:', error.stack);
+    
+    // Return generic error message to clients (prevents information leakage)
     res.status(500).json({ 
-      error: `Failed to fetch weather data from AccuWeather: ${error.message}. Please try again later.` 
+      error: 'Failed to fetch weather data. Please try again later.' 
     });
   }
 });
