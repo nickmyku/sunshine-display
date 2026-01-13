@@ -156,8 +156,8 @@ app.get('/api/hourly-forecast', async (req, res) => {
         cards = Array.from(document.querySelectorAll('.hourly-list-item'));
       }
       
-      // Limit to 12 hours
-      cards = cards.slice(0, 12);
+      // Limit to 16 hours
+      cards = cards.slice(0, 16);
       
       const now = new Date();
       
