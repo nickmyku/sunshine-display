@@ -135,7 +135,7 @@ const helmet = require('helmet');
 app.use(helmet());
 ```
 
-**Status:** ✅ Fixed - Helmet middleware added with custom CSP
+**Status:** ✅ Fixed - Helmet middleware added with custom CSP enabled
 
 ---
 
