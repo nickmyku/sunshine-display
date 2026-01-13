@@ -15,8 +15,16 @@ app.use(express.static('public'));
 // AccuWeather URL for Culver City hourly forecast
 const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093';
 
+// Data refresh interval (1 hour in milliseconds)
+const DATA_REFRESH_INTERVAL = 60 * 60 * 1000;
+
 // Initialize browser instance (reused for better performance)
 let browser = null;
+
+// Cached weather data
+let cachedWeatherData = null;
+let lastFetchTime = null;
+let isFetching = false;
 
 async function initBrowser() {
   if (!browser) {
@@ -33,8 +41,8 @@ async function initBrowser() {
   return browser;
 }
 
-// Endpoint to get hourly forecast
-app.get('/api/hourly-forecast', async (req, res) => {
+// Scrape weather data from AccuWeather
+async function scrapeWeatherData() {
   let page = null;
   try {
     const browserInstance = await initBrowser();
@@ -356,16 +364,95 @@ app.get('/api/hourly-forecast', async (req, res) => {
     });
     console.log('===========================================\n');
 
-    res.json({
+    return {
       location: scrapedLocation,
       forecast: forecastData
-    });
+    };
   } catch (error) {
     if (page) {
       await page.close().catch(() => {});
     }
-    console.error('Error scraping AccuWeather data:', error.message);
-    console.error('Full error:', error);
+    throw error;
+  }
+}
+
+// Fetch and cache weather data
+async function updateWeatherData() {
+  if (isFetching) {
+    console.log('Weather data fetch already in progress, skipping...');
+    return;
+  }
+
+  isFetching = true;
+  console.log(`\n[${new Date().toISOString()}] Starting scheduled weather data update...`);
+
+  try {
+    const data = await scrapeWeatherData();
+    cachedWeatherData = data;
+    lastFetchTime = new Date();
+    console.log(`[${lastFetchTime.toISOString()}] Weather data cache updated successfully.`);
+    console.log(`Next update scheduled in ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes.`);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error updating weather data:`, error.message);
+    // Keep the old cached data if available
+    if (cachedWeatherData) {
+      console.log('Using previously cached data.');
+    }
+  } finally {
+    isFetching = false;
+  }
+}
+
+// Start the hourly data refresh interval
+function startHourlyDataRefresh() {
+  // Perform initial fetch
+  updateWeatherData();
+
+  // Schedule hourly updates
+  setInterval(() => {
+    updateWeatherData();
+  }, DATA_REFRESH_INTERVAL);
+
+  console.log(`Hourly data refresh scheduled (every ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes).`);
+}
+
+// Endpoint to get hourly forecast
+app.get('/api/hourly-forecast', async (req, res) => {
+  try {
+    // If we have cached data, return it
+    if (cachedWeatherData) {
+      const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime.getTime()) / 1000 / 60) : 0;
+      console.log(`[${new Date().toISOString()}] Serving cached weather data (age: ${cacheAge} minutes)`);
+      return res.json({
+        ...cachedWeatherData,
+        cachedAt: lastFetchTime?.toISOString(),
+        cacheAgeMinutes: cacheAge
+      });
+    }
+
+    // If no cached data and not currently fetching, fetch now
+    if (!isFetching) {
+      await updateWeatherData();
+    } else {
+      // Wait for the current fetch to complete
+      console.log('Waiting for ongoing fetch to complete...');
+      while (isFetching) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+
+    // Return cached data after fetch
+    if (cachedWeatherData) {
+      return res.json({
+        ...cachedWeatherData,
+        cachedAt: lastFetchTime?.toISOString(),
+        cacheAgeMinutes: 0
+      });
+    }
+
+    throw new Error('Failed to fetch weather data. Please try again later.');
+  } catch (error) {
+    console.error('Error in /api/hourly-forecast:', error.message);
     res.status(500).json({ 
       error: `Failed to fetch weather data from AccuWeather: ${error.message}. Please try again later.` 
     });
@@ -388,4 +475,7 @@ process.on('SIGINT', async () => {
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log('Scraping AccuWeather website for weather data...');
+  
+  // Start the hourly data refresh
+  startHourlyDataRefresh();
 });
