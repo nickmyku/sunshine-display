@@ -71,7 +71,7 @@ function createWeatherCard(hour) {
             </div>
             <div class="precipitation-item">
                 <span class="precipitation-label">Amount</span>
-                <span class="precipitation-value">${hour.precipitationAmount.toFixed(2)} ${hour.precipitationUnit}</span>
+                <span class="precipitation-value">${hour.precipitationAmount.toFixed(1)} ${hour.precipitationUnit}</span>
             </div>
         </div>
     `;
