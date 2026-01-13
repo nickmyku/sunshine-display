@@ -42,15 +42,54 @@ function ensureScreenshotsDirExists() {
 
 async function initBrowser() {
   if (!browser) {
-    browser = await puppeteer.launch({
+    // Chrome launch options for better compatibility in various environments
+    const launchOptions = {
       headless: true,
       args: [
         '--no-sandbox', 
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
-        '--disable-dev-shm-usage'
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--disable-software-rasterizer',
+        '--disable-extensions',
+        '--single-process',
+        '--no-zygote'
       ]
-    });
+    };
+
+    try {
+      browser = await puppeteer.launch(launchOptions);
+    } catch (error) {
+      console.error('Failed to launch browser with bundled Chrome:', error.message);
+      
+      // Try to find and use system Chrome as fallback
+      const systemChromePaths = [
+        '/usr/bin/google-chrome',
+        '/usr/local/bin/google-chrome',
+        '/usr/bin/google-chrome-stable',
+        '/usr/bin/chromium-browser',
+        '/usr/bin/chromium'
+      ];
+      
+      let executablePath = null;
+      for (const chromePath of systemChromePaths) {
+        if (fs.existsSync(chromePath)) {
+          executablePath = chromePath;
+          break;
+        }
+      }
+      
+      if (executablePath) {
+        console.log(`Attempting to use system Chrome at: ${executablePath}`);
+        browser = await puppeteer.launch({
+          ...launchOptions,
+          executablePath
+        });
+      } else {
+        throw new Error('Failed to launch browser: No Chrome/Chromium executable found. Error code 2 typically indicates missing browser binary or dependencies.');
+      }
+    }
   }
   return browser;
 }
