@@ -79,10 +79,16 @@ header h2 {
     color: white;
 }
 
+.time-icon-row {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
 .time {
     font-size: 0.85rem;
     font-weight: 600;
-    margin-bottom: 6px;
     color: #666;
 }
 
@@ -93,7 +99,6 @@ header h2 {
 .icon-phrase {
     font-size: 0.75rem;
     color: #888;
-    margin-bottom: 8px;
 }
 
 .weather-card.night .icon-phrase {
