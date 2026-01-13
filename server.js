@@ -98,14 +98,32 @@ async function saveScreenshotAsBmp() {
     
     const width = info.width;
     const height = info.height;
+    const numPixels = width * height;
     
-    // bmp-js encode expects data in RGBA format (not BGRA as commonly assumed)
-    // The library handles the internal BMP format conversion
-    // Just pass the raw RGBA data directly from sharp
+    // bmp-js expects data in ABGR format (Alpha, Blue, Green, Red)
+    // sharp provides RGBA format (Red, Green, Blue, Alpha)
+    // We need to convert RGBA -> ABGR
+    const pixelData = Buffer.alloc(numPixels * 4);
+    
+    for (let i = 0; i < numPixels; i++) {
+      const srcIdx = i * 4;
+      const dstIdx = i * 4;
+      
+      const r = data[srcIdx];
+      const g = data[srcIdx + 1];
+      const b = data[srcIdx + 2];
+      const a = data[srcIdx + 3];
+      
+      // Convert RGBA to ABGR
+      pixelData[dstIdx] = a;     // Alpha
+      pixelData[dstIdx + 1] = b; // Blue
+      pixelData[dstIdx + 2] = g; // Green
+      pixelData[dstIdx + 3] = r; // Red
+    }
     
     // Encode as BMP
     const bmpData = bmp.encode({
-      data: data,
+      data: pixelData,
       width: width,
       height: height
     });
