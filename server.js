@@ -64,8 +64,8 @@ async function saveScreenshotAsBmp() {
     const browserInstance = await initBrowser();
     screenshotPage = await browserInstance.newPage();
     
-    // Set viewport to 1440x960 for capture
-    await screenshotPage.setViewport({ width: 1440, height: 960 });
+    // Set viewport to 960x640 for capture
+    await screenshotPage.setViewport({ width: 960, height: 640 });
     
     // Navigate to the server's own web UI
     await screenshotPage.goto(`http://localhost:${PORT}`, { 
@@ -121,7 +121,7 @@ async function saveScreenshotAsBmp() {
     const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
     fs.writeFileSync(bmpPath, bmpData.data);
     
-    console.log(`Screenshot saved to: ${bmpPath} (server UI resized from 1440x960 to ${width}x${height})`);
+    console.log(`Screenshot saved to: ${bmpPath} (server UI captured at ${width}x${height})`);
   } catch (error) {
     if (screenshotPage) {
       await screenshotPage.close().catch(() => {});
