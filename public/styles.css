@@ -150,25 +150,24 @@ header h2 {
 }
 
 .refresh-btn {
-    display: block;
-    margin: 0 auto;
-    padding: 12px 30px;
-    font-size: 1rem;
-    background: white;
+    padding: 8px 20px;
+    font-size: 0.9rem;
+    background: #2196F3;
+    color: white;
     border: none;
-    border-radius: 25px;
+    border-radius: 20px;
     cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: transform 0.2s, box-shadow 0.2s;
+    font-weight: 600;
+    transition: background 0.2s, transform 0.2s;
 }
 
 .refresh-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    background: #1976D2;
+    transform: scale(1.05);
 }
 
 .refresh-btn:active {
-    transform: translateY(0);
+    transform: scale(0.98);
 }
 
 .unit-toggle-container {
@@ -236,6 +235,10 @@ header h2 {
 
     .unit-toggle-container {
         flex-direction: column;
-        gap: 10px;
+        gap: 12px;
+    }
+
+    .refresh-btn {
+        width: 100%;
     }
 }
