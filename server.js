@@ -68,7 +68,7 @@ app.use('/api/', apiLimiter);
 
 // Standard middleware
 app.use(express.json({ limit: '10kb' })); // Limit body size
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Serve screenshots directory as static files
 app.use('/screenshots', express.static(SCREENSHOTS_DIR));
