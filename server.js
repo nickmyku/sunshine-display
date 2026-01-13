@@ -59,16 +59,20 @@ async function saveScreenshotAsBmp(page) {
   try {
     ensureScreenshotsDirExists();
     
+    // Set viewport to 1440x960 for capture
+    await page.setViewport({ width: 1440, height: 960 });
+    
     // Take screenshot as PNG buffer
     const pngBuffer = await page.screenshot({ fullPage: false });
     
-    // Convert to BMP using sharp and save
+    // Convert to BMP, resize to 960x640, and save
     const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
     await sharp(pngBuffer)
+      .resize(960, 640)
       .toFormat('bmp')
       .toFile(bmpPath);
     
-    console.log(`Screenshot saved to: ${bmpPath}`);
+    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
   } catch (error) {
     console.error('Error saving screenshot:', error.message);
   }
