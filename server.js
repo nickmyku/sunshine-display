@@ -67,37 +67,49 @@ async function saveScreenshotAsBmp(page) {
     const pngBuffer = await page.screenshot({ fullPage: false });
     
     // Resize image and get raw RGBA pixel data
+    // Use ensureAlpha() to guarantee 4 channels (RGBA) regardless of input format
     const { data, info } = await sharp(pngBuffer)
       .resize(960, 640)
+      .ensureAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
     
-    // Convert RGBA to ABGR format (which bmp-js expects for 32-bit BMP)
-    const pixelData = Buffer.alloc(data.length);
-    for (let i = 0; i < data.length; i += info.channels) {
-      const r = data[i];
-      const g = data[i + 1];
-      const b = data[i + 2];
-      const a = info.channels === 4 ? data[i + 3] : 255;
+    const width = info.width;
+    const height = info.height;
+    const numPixels = width * height;
+    
+    // Convert RGBA to BGRA format (which bmp-js expects for 32-bit BMP)
+    // Use separate source and destination indices to avoid data corruption
+    const pixelData = Buffer.alloc(numPixels * 4);
+    
+    for (let i = 0; i < numPixels; i++) {
+      const srcIdx = i * 4;  // Source RGBA pixel (always 4 bytes with ensureAlpha)
+      const dstIdx = i * 4;  // Destination BGRA pixel
+      
+      const r = data[srcIdx];
+      const g = data[srcIdx + 1];
+      const b = data[srcIdx + 2];
+      const a = data[srcIdx + 3];
+      
       // BMP stores in BGRA order
-      pixelData[i] = b;
-      pixelData[i + 1] = g;
-      pixelData[i + 2] = r;
-      pixelData[i + 3] = a;
+      pixelData[dstIdx] = b;
+      pixelData[dstIdx + 1] = g;
+      pixelData[dstIdx + 2] = r;
+      pixelData[dstIdx + 3] = a;
     }
     
     // Encode as BMP
     const bmpData = bmp.encode({
       data: pixelData,
-      width: info.width,
-      height: info.height
+      width: width,
+      height: height
     });
     
     // Save BMP file
     const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
     fs.writeFileSync(bmpPath, bmpData.data);
     
-    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
+    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to ${width}x${height})`);
   } catch (error) {
     console.error('Error saving screenshot:', error.message);
   }
