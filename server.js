@@ -55,16 +55,38 @@ async function initBrowser() {
   return browser;
 }
 
-// Take a screenshot and save as BMP
-async function saveScreenshotAsBmp(page) {
+// Take a screenshot of the server's own web UI and save as BMP
+async function saveScreenshotAsBmp() {
+  let screenshotPage = null;
   try {
     ensureScreenshotsDirExists();
     
+    const browserInstance = await initBrowser();
+    screenshotPage = await browserInstance.newPage();
+    
     // Set viewport to 1440x960 for capture
-    await page.setViewport({ width: 1440, height: 960 });
+    await screenshotPage.setViewport({ width: 1440, height: 960 });
+    
+    // Navigate to the server's own web UI
+    await screenshotPage.goto(`http://localhost:${PORT}`, { 
+      waitUntil: 'networkidle2',
+      timeout: 30000 
+    });
+    
+    // Wait for weather data to load in the UI
+    await screenshotPage.waitForFunction(() => {
+      const grid = document.getElementById('weather-grid');
+      return grid && grid.children.length > 0;
+    }, { timeout: 15000 });
+    
+    // Small delay to ensure rendering is complete
+    await new Promise(resolve => setTimeout(resolve, 500));
     
     // Take screenshot as PNG buffer
-    const pngBuffer = await page.screenshot({ fullPage: false });
+    const pngBuffer = await screenshotPage.screenshot({ fullPage: false });
+    
+    await screenshotPage.close();
+    screenshotPage = null;
     
     // Resize image and get raw RGBA pixel data
     // Use ensureAlpha() to guarantee 4 channels (RGBA) regardless of input format
@@ -109,8 +131,11 @@ async function saveScreenshotAsBmp(page) {
     const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
     fs.writeFileSync(bmpPath, bmpData.data);
     
-    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to ${width}x${height})`);
+    console.log(`Screenshot saved to: ${bmpPath} (server UI resized from 1440x960 to ${width}x${height})`);
   } catch (error) {
+    if (screenshotPage) {
+      await screenshotPage.close().catch(() => {});
+    }
     console.error('Error saving screenshot:', error.message);
   }
 }
@@ -416,15 +441,11 @@ async function scrapeWeatherData() {
       }).filter(hour => hour.temperature !== null);
     });
 
-    // Validate that data was successfully scraped before taking screenshot
+    // Validate that data was successfully scraped
     if (forecastData.length === 0) {
       await page.close();
       throw new Error('No forecast data found on page. The page structure may have changed.');
     }
-
-    // Take screenshot after the first set of data is successfully scraped
-    console.log('Data scraped successfully, taking screenshot...');
-    await saveScreenshotAsBmp(page);
 
     await page.close();
 
@@ -472,6 +493,10 @@ async function updateWeatherData() {
     lastFetchTime = new Date();
     console.log(`[${lastFetchTime.toISOString()}] Weather data cache updated successfully.`);
     console.log(`Next update scheduled in ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes.`);
+    
+    // Take screenshot of the server's own UI after data is cached
+    console.log('Taking screenshot of server UI...');
+    await saveScreenshotAsBmp();
   } catch (error) {
     console.error(`[${new Date().toISOString()}] Error updating weather data:`, error.message);
     // Keep the old cached data if available
