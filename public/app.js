@@ -218,9 +218,18 @@ function initCardsCountInput() {
     });
 }
 
+// Handle refresh button click
+function initRefreshButton() {
+    const refreshBtn = document.getElementById('refresh-btn');
+    refreshBtn.addEventListener('click', () => {
+        fetchWeather();
+    });
+}
+
 // Fetch weather on page load and initialize controls
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
     initCardsCountInput();
+    initRefreshButton();
     fetchWeather();
 });
