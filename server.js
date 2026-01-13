@@ -379,14 +379,17 @@ async function scrapeWeatherData() {
       }).filter(hour => hour.temperature !== null);
     });
 
-    // Take screenshot before closing the page
+    // Validate that data was successfully scraped before taking screenshot
+    if (forecastData.length === 0) {
+      await page.close();
+      throw new Error('No forecast data found on page. The page structure may have changed.');
+    }
+
+    // Take screenshot after the first set of data is successfully scraped
+    console.log('Data scraped successfully, taking screenshot...');
     await saveScreenshotAsBmp(page);
 
     await page.close();
-
-    if (forecastData.length === 0) {
-      throw new Error('No forecast data found on page. The page structure may have changed.');
-    }
 
     // Use scraped location or fallback to URL-based name
     const scrapedLocation = locationName || 'Unknown Location';
