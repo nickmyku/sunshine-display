@@ -55,14 +55,13 @@ function createWeatherCard(hour) {
     
     const date = new Date(hour.datetime);
     const timeStr = formatTime(hour.datetime);
-    const dateStr = formatDate(hour.datetime);
     
     // Get temperature in selected unit
     const displayTemp = getTemperature(hour.temperature);
     const displayUnit = getSelectedUnit();
 
     card.innerHTML = `
-        <div class="time">${dateStr} ${timeStr}</div>
+        <div class="time">${timeStr}</div>
         <div class="icon-phrase">${hour.iconPhrase}</div>
         <div class="temperature">${displayTemp}°${displayUnit}</div>
         <div class="precipitation">
