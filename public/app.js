@@ -79,12 +79,25 @@ function createWeatherCard(hour) {
     return card;
 }
 
-// Render weather cards from stored forecast data
+// Get the number of columns in the grid based on viewport width
+function getGridColumns() {
+    const width = window.innerWidth;
+    if (width <= 480) return 2;
+    if (width <= 768) return 3;
+    if (width <= 1024) return 4;
+    return 6;
+}
+
+// Render weather cards from stored forecast data (limited to 2 rows)
 function renderWeatherCards() {
     const gridEl = document.getElementById('weather-grid');
     gridEl.innerHTML = '';
     
-    forecastData.forEach(hour => {
+    const columns = getGridColumns();
+    const maxCards = columns * 2; // 2 full rows
+    const cardsToDisplay = forecastData.slice(0, maxCards);
+    
+    cardsToDisplay.forEach(hour => {
         const card = createWeatherCard(hour);
         gridEl.appendChild(card);
     });
@@ -147,8 +160,23 @@ function initUnitToggle() {
     });
 }
 
+// Handle window resize to update card display
+function initResizeHandler() {
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        // Debounce resize events
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (forecastData.length > 0) {
+                renderWeatherCards();
+            }
+        }, 150);
+    });
+}
+
 // Fetch weather on page load and initialize unit toggle
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
+    initResizeHandler();
     fetchWeather();
 });

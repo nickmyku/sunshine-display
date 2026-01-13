@@ -56,9 +56,10 @@ header h2 {
 
 .weather-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(6, 1fr);
     gap: 10px;
     margin-bottom: 20px;
+    overflow: hidden;
 }
 
 .weather-card {
@@ -224,13 +225,19 @@ header h2 {
     color: white;
 }
 
+@media (max-width: 1024px) {
+    .weather-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
 @media (max-width: 768px) {
     header h1 {
         font-size: 2rem;
     }
 
     .weather-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
     }
 
     .unit-toggle-container {
@@ -240,5 +247,11 @@ header h2 {
 
     .refresh-btn {
         width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .weather-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
