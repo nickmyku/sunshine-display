@@ -93,34 +93,48 @@ app.get('/api/hourly-forecast', async (req, res) => {
         '.header .location'
       ];
       
+      let rawLocation = null;
+      
       for (const selector of locationSelectors) {
         const elem = document.querySelector(selector);
         if (elem && elem.textContent.trim()) {
-          return elem.textContent.trim();
+          rawLocation = elem.textContent.trim();
+          break;
         }
       }
       
       // Try to find location in the page title or meta tags
-      const pageTitle = document.title;
-      if (pageTitle) {
-        // AccuWeather titles are typically like "City Name Weather - AccuWeather"
-        const titleMatch = pageTitle.match(/^(.+?)\s*(?:Weather|Hourly|Daily|Forecast)/i);
-        if (titleMatch) {
-          return titleMatch[1].trim();
+      if (!rawLocation) {
+        const pageTitle = document.title;
+        if (pageTitle) {
+          // AccuWeather titles are typically like "City Name Weather - AccuWeather"
+          const titleMatch = pageTitle.match(/^(.+?)\s*(?:Weather|Hourly|Daily|Forecast)/i);
+          if (titleMatch) {
+            rawLocation = titleMatch[1].trim();
+          }
         }
       }
       
       // Fallback: look for any header element with location-like content
-      const headers = document.querySelectorAll('h1, h2, .header-title');
-      for (const header of headers) {
-        const text = header.textContent.trim();
-        // Check if it looks like a location (contains city-like patterns)
-        if (text && text.length < 100 && !text.toLowerCase().includes('hourly') && !text.toLowerCase().includes('forecast')) {
-          return text;
+      if (!rawLocation) {
+        const headers = document.querySelectorAll('h1, h2, .header-title');
+        for (const header of headers) {
+          const text = header.textContent.trim();
+          // Check if it looks like a location (contains city-like patterns)
+          if (text && text.length < 100 && !text.toLowerCase().includes('hourly') && !text.toLowerCase().includes('forecast')) {
+            rawLocation = text;
+            break;
+          }
         }
       }
       
-      return null;
+      // Remove temperature from the location name (e.g., "Culver City 72°" -> "Culver City")
+      if (rawLocation) {
+        // Remove temperature patterns like "72°", "72°F", "72 °F", "-5°C", etc.
+        rawLocation = rawLocation.replace(/\s*-?\d+\s*°[FCfc]?\s*$/g, '').trim();
+      }
+      
+      return rawLocation;
     });
 
     // Extract hourly forecast data
