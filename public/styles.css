@@ -224,6 +224,35 @@ header h2 {
     color: white;
 }
 
+.cards-count-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cards-count-input {
+    width: 60px;
+    padding: 8px 12px;
+    border: 2px solid #f0f0f0;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    color: #666;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cards-count-input:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.cards-count-input::-webkit-inner-spin-button,
+.cards-count-input::-webkit-outer-spin-button {
+    opacity: 1;
+}
+
 @media (max-width: 768px) {
     header h1 {
         font-size: 2rem;
@@ -236,6 +265,11 @@ header h2 {
     .unit-toggle-container {
         flex-direction: column;
         gap: 12px;
+    }
+
+    .cards-count-container {
+        width: 100%;
+        justify-content: center;
     }
 
     .refresh-btn {

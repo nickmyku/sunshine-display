@@ -79,12 +79,24 @@ function createWeatherCard(hour) {
     return card;
 }
 
+// Get the number of cards to display
+function getCardsCount() {
+    const cardsInput = document.getElementById('cards-count');
+    const count = parseInt(cardsInput.value, 10);
+    // Ensure we have a valid number between 1 and the available forecast data
+    if (isNaN(count) || count < 1) return 1;
+    return count;
+}
+
 // Render weather cards from stored forecast data
 function renderWeatherCards() {
     const gridEl = document.getElementById('weather-grid');
     gridEl.innerHTML = '';
     
-    forecastData.forEach(hour => {
+    const cardsToShow = getCardsCount();
+    const dataToRender = forecastData.slice(0, cardsToShow);
+    
+    dataToRender.forEach(hour => {
         const card = createWeatherCard(hour);
         gridEl.appendChild(card);
     });
@@ -147,8 +159,19 @@ function initUnitToggle() {
     });
 }
 
-// Fetch weather on page load and initialize unit toggle
+// Handle cards count input
+function initCardsCountInput() {
+    const cardsInput = document.getElementById('cards-count');
+    cardsInput.addEventListener('input', () => {
+        if (forecastData.length > 0) {
+            renderWeatherCards();
+        }
+    });
+}
+
+// Fetch weather on page load and initialize controls
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
+    initCardsCountInput();
     fetchWeather();
 });
