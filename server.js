@@ -18,6 +18,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Serve screenshots directory as static files
+app.use('/screenshots', express.static(SCREENSHOTS_DIR));
+
 // AccuWeather URL for Culver City hourly forecast
 const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093';
 
