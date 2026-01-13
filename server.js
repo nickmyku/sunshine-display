@@ -2,7 +2,12 @@ const express = require('express');
 const puppeteer = require('puppeteer');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
 require('dotenv').config();
+
+// Screenshots directory
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +31,14 @@ let cachedWeatherData = null;
 let lastFetchTime = null;
 let isFetching = false;
 
+// Ensure screenshots directory exists
+function ensureScreenshotsDirExists() {
+  if (!fs.existsSync(SCREENSHOTS_DIR)) {
+    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+    console.log(`Created screenshots directory: ${SCREENSHOTS_DIR}`);
+  }
+}
+
 async function initBrowser() {
   if (!browser) {
     browser = await puppeteer.launch({
@@ -39,6 +52,30 @@ async function initBrowser() {
     });
   }
   return browser;
+}
+
+// Take a screenshot and save as BMP
+async function saveScreenshotAsBmp(page) {
+  try {
+    ensureScreenshotsDirExists();
+    
+    // Set viewport to 1440x960 for capture
+    await page.setViewport({ width: 1440, height: 960 });
+    
+    // Take screenshot as PNG buffer
+    const pngBuffer = await page.screenshot({ fullPage: false });
+    
+    // Convert to BMP, resize to 960x640, and save
+    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
+    await sharp(pngBuffer)
+      .resize(960, 640)
+      .toFormat('bmp')
+      .toFile(bmpPath);
+    
+    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
+  } catch (error) {
+    console.error('Error saving screenshot:', error.message);
+  }
 }
 
 // Scrape weather data from AccuWeather
@@ -341,6 +378,9 @@ async function scrapeWeatherData() {
         };
       }).filter(hour => hour.temperature !== null);
     });
+
+    // Take screenshot before closing the page
+    await saveScreenshotAsBmp(page);
 
     await page.close();
 

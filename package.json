@@ -7,13 +7,18 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": ["weather", "accuweather", "culver-city"],
+  "keywords": [
+    "weather",
+    "accuweather",
+    "culver-city"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^16.3.1",
     "cors": "^2.8.5",
-    "puppeteer": "^24.33.0"
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "puppeteer": "^24.33.0",
+    "sharp": "^0.34.5"
   }
 }
