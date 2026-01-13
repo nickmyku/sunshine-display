@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const bmp = require('bmp-js');
 require('dotenv').config();
 
 // Screenshots directory
@@ -54,8 +55,8 @@ async function initBrowser() {
   return browser;
 }
 
-// Take a screenshot and save as PNG
-async function saveScreenshotAsPng(page) {
+// Take a screenshot and save as BMP
+async function saveScreenshotAsBmp(page) {
   try {
     ensureScreenshotsDirExists();
     
@@ -65,14 +66,38 @@ async function saveScreenshotAsPng(page) {
     // Take screenshot as PNG buffer
     const pngBuffer = await page.screenshot({ fullPage: false });
     
-    // Convert to PNG, resize to 960x640, and save
-    const pngPath = path.join(SCREENSHOTS_DIR, 'current.png');
-    await sharp(pngBuffer)
+    // Resize image and get raw RGBA pixel data
+    const { data, info } = await sharp(pngBuffer)
       .resize(960, 640)
-      .toFormat('png')
-      .toFile(pngPath);
+      .raw()
+      .toBuffer({ resolveWithObject: true });
     
-    console.log(`Screenshot saved to: ${pngPath} (resized from 1440x960 to 960x640)`);
+    // Convert RGBA to ABGR format (which bmp-js expects for 32-bit BMP)
+    const pixelData = Buffer.alloc(data.length);
+    for (let i = 0; i < data.length; i += info.channels) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = info.channels === 4 ? data[i + 3] : 255;
+      // BMP stores in BGRA order
+      pixelData[i] = b;
+      pixelData[i + 1] = g;
+      pixelData[i + 2] = r;
+      pixelData[i + 3] = a;
+    }
+    
+    // Encode as BMP
+    const bmpData = bmp.encode({
+      data: pixelData,
+      width: info.width,
+      height: info.height
+    });
+    
+    // Save BMP file
+    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
+    fs.writeFileSync(bmpPath, bmpData.data);
+    
+    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
   } catch (error) {
     console.error('Error saving screenshot:', error.message);
   }
@@ -387,7 +412,7 @@ async function scrapeWeatherData() {
 
     // Take screenshot after the first set of data is successfully scraped
     console.log('Data scraped successfully, taking screenshot...');
-    await saveScreenshotAsPng(page);
+    await saveScreenshotAsBmp(page);
 
     await page.close();
 
