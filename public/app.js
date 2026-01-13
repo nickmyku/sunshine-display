@@ -48,33 +48,77 @@ function formatDate(datetime) {
     }
 }
 
-// Create weather card element
+// Sanitize text to prevent XSS attacks
+function sanitizeText(text) {
+    if (typeof text !== 'string') return String(text);
+    return text;
+}
+
+// Create weather card element using safe DOM manipulation (XSS-safe)
 function createWeatherCard(hour) {
     const card = document.createElement('div');
     card.className = `weather-card ${hour.isDaylight ? '' : 'night'}`;
     
-    const date = new Date(hour.datetime);
     const timeStr = formatTime(hour.datetime);
     
     // Get temperature in selected unit
     const displayTemp = getTemperature(hour.temperature);
     const displayUnit = getSelectedUnit();
 
-    card.innerHTML = `
-        <div class="time">${timeStr}</div>
-        <div class="icon-phrase">${hour.iconPhrase}</div>
-        <div class="temperature">${displayTemp}°${displayUnit}</div>
-        <div class="precipitation">
-            <div class="precipitation-item">
-                <span class="precipitation-label">Precipitation</span>
-                <span class="precipitation-value">${hour.precipitation}%</span>
-            </div>
-            <div class="precipitation-item">
-                <span class="precipitation-label">Amount</span>
-                <span class="precipitation-value">${hour.precipitationAmount.toFixed(1)} ${hour.precipitationUnit}</span>
-            </div>
-        </div>
-    `;
+    // Build DOM structure safely using textContent (prevents XSS)
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'time';
+    timeDiv.textContent = timeStr;
+    
+    const iconPhraseDiv = document.createElement('div');
+    iconPhraseDiv.className = 'icon-phrase';
+    iconPhraseDiv.textContent = sanitizeText(hour.iconPhrase);
+    
+    const temperatureDiv = document.createElement('div');
+    temperatureDiv.className = 'temperature';
+    temperatureDiv.textContent = `${displayTemp}°${displayUnit}`;
+    
+    const precipitationDiv = document.createElement('div');
+    precipitationDiv.className = 'precipitation';
+    
+    // First precipitation item
+    const precipItem1 = document.createElement('div');
+    precipItem1.className = 'precipitation-item';
+    
+    const precipLabel1 = document.createElement('span');
+    precipLabel1.className = 'precipitation-label';
+    precipLabel1.textContent = 'Precipitation';
+    
+    const precipValue1 = document.createElement('span');
+    precipValue1.className = 'precipitation-value';
+    precipValue1.textContent = `${hour.precipitation}%`;
+    
+    precipItem1.appendChild(precipLabel1);
+    precipItem1.appendChild(precipValue1);
+    
+    // Second precipitation item
+    const precipItem2 = document.createElement('div');
+    precipItem2.className = 'precipitation-item';
+    
+    const precipLabel2 = document.createElement('span');
+    precipLabel2.className = 'precipitation-label';
+    precipLabel2.textContent = 'Amount';
+    
+    const precipValue2 = document.createElement('span');
+    precipValue2.className = 'precipitation-value';
+    precipValue2.textContent = `${hour.precipitationAmount.toFixed(1)} ${sanitizeText(hour.precipitationUnit)}`;
+    
+    precipItem2.appendChild(precipLabel2);
+    precipItem2.appendChild(precipValue2);
+    
+    precipitationDiv.appendChild(precipItem1);
+    precipitationDiv.appendChild(precipItem2);
+    
+    // Assemble the card
+    card.appendChild(timeDiv);
+    card.appendChild(iconPhraseDiv);
+    card.appendChild(temperatureDiv);
+    card.appendChild(precipitationDiv);
 
     return card;
 }
