@@ -54,8 +54,8 @@ async function initBrowser() {
   return browser;
 }
 
-// Take a screenshot and save as BMP
-async function saveScreenshotAsBmp(page) {
+// Take a screenshot and save as PNG
+async function saveScreenshotAsPng(page) {
   try {
     ensureScreenshotsDirExists();
     
@@ -65,14 +65,14 @@ async function saveScreenshotAsBmp(page) {
     // Take screenshot as PNG buffer
     const pngBuffer = await page.screenshot({ fullPage: false });
     
-    // Convert to BMP, resize to 960x640, and save
-    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
+    // Convert to PNG, resize to 960x640, and save
+    const pngPath = path.join(SCREENSHOTS_DIR, 'current.png');
     await sharp(pngBuffer)
       .resize(960, 640)
-      .toFormat('bmp')
-      .toFile(bmpPath);
+      .toFormat('png')
+      .toFile(pngPath);
     
-    console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
+    console.log(`Screenshot saved to: ${pngPath} (resized from 1440x960 to 960x640)`);
   } catch (error) {
     console.error('Error saving screenshot:', error.message);
   }
@@ -387,7 +387,7 @@ async function scrapeWeatherData() {
 
     // Take screenshot after the first set of data is successfully scraped
     console.log('Data scraped successfully, taking screenshot...');
-    await saveScreenshotAsBmp(page);
+    await saveScreenshotAsPng(page);
 
     await page.close();
 
