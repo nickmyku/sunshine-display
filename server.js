@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 const sharp = require('sharp');
+const bmp = require('bmp-js');
 require('dotenv').config();
 
 // Screenshots directory
@@ -65,12 +66,36 @@ async function saveScreenshotAsBmp(page) {
     // Take screenshot as PNG buffer
     const pngBuffer = await page.screenshot({ fullPage: false });
     
-    // Convert to BMP, resize to 960x640, and save
-    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
-    await sharp(pngBuffer)
+    // Resize image and get raw RGBA pixel data
+    const { data, info } = await sharp(pngBuffer)
       .resize(960, 640)
-      .toFormat('bmp')
-      .toFile(bmpPath);
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    
+    // Convert RGBA to ABGR format (which bmp-js expects for 32-bit BMP)
+    const pixelData = Buffer.alloc(data.length);
+    for (let i = 0; i < data.length; i += info.channels) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      const a = info.channels === 4 ? data[i + 3] : 255;
+      // BMP stores in BGRA order
+      pixelData[i] = b;
+      pixelData[i + 1] = g;
+      pixelData[i + 2] = r;
+      pixelData[i + 3] = a;
+    }
+    
+    // Encode as BMP
+    const bmpData = bmp.encode({
+      data: pixelData,
+      width: info.width,
+      height: info.height
+    });
+    
+    // Save BMP file
+    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
+    fs.writeFileSync(bmpPath, bmpData.data);
     
     console.log(`Screenshot saved to: ${bmpPath} (resized from 1440x960 to 960x640)`);
   } catch (error) {
