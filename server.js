@@ -247,7 +247,7 @@ app.get('/api/hourly-forecast', async (req, res) => {
         
         // Extract precipitation amount
         let precipitationAmount = 0;
-        let precipitationUnit = 'in';
+        let precipitationUnit = 'mm';
         const precipAmountSelectors = [
           '.precip-amount',
           '.precipitation-amount',
@@ -261,7 +261,11 @@ app.get('/api/hourly-forecast', async (req, res) => {
             if (precipAmountMatch) {
               precipitationAmount = parseFloat(precipAmountMatch[1]);
               const unit = precipAmountMatch[2].toLowerCase();
-              precipitationUnit = (unit === 'mm') ? 'mm' : 'in';
+              // Convert inches to mm (1 inch = 25.4 mm)
+              if (unit !== 'mm') {
+                precipitationAmount = precipitationAmount * 25.4;
+              }
+              precipitationUnit = 'mm';
               break;
             }
           }
