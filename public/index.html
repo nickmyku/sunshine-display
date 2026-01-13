@@ -21,6 +21,16 @@
         </div>
 
         <button id="refresh-btn" class="refresh-btn" onclick="fetchWeather()">🔄 Refresh</button>
+
+        <div class="unit-toggle-container">
+            <span class="unit-label">Temperature Unit:</span>
+            <div class="unit-toggle">
+                <input type="radio" id="unit-celsius" name="temp-unit" value="C" checked>
+                <label for="unit-celsius">°C</label>
+                <input type="radio" id="unit-fahrenheit" name="temp-unit" value="F">
+                <label for="unit-fahrenheit">°F</label>
+            </div>
+        </div>
     </div>
 
     <script src="app.js"></script>

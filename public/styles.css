@@ -171,6 +171,60 @@ header h2 {
     transform: translateY(0);
 }
 
+.unit-toggle-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin-top: 20px;
+    padding: 15px 25px;
+    background: white;
+    border-radius: 25px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: fit-content;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.unit-label {
+    font-weight: 500;
+    color: #666;
+}
+
+.unit-toggle {
+    display: flex;
+    background: #f0f0f0;
+    border-radius: 20px;
+    padding: 4px;
+}
+
+.unit-toggle input[type="radio"] {
+    display: none;
+}
+
+.unit-toggle label {
+    padding: 8px 20px;
+    cursor: pointer;
+    border-radius: 16px;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.unit-toggle input[type="radio"]:checked + label {
+    background: #2196F3;
+    color: white;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
+.unit-toggle label:hover {
+    color: #2196F3;
+}
+
+.unit-toggle input[type="radio"]:checked + label:hover {
+    color: white;
+}
+
 @media (max-width: 768px) {
     header h1 {
         font-size: 2rem;
@@ -178,5 +232,10 @@ header h2 {
 
     .weather-grid {
         grid-template-columns: 1fr;
+    }
+
+    .unit-toggle-container {
+        flex-direction: column;
+        gap: 10px;
     }
 }

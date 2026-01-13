@@ -1,3 +1,26 @@
+// Store forecast data for unit conversion
+let forecastData = [];
+
+// Get current temperature unit (default to Celsius)
+function getSelectedUnit() {
+    const celsiusRadio = document.getElementById('unit-celsius');
+    return celsiusRadio && celsiusRadio.checked ? 'C' : 'F';
+}
+
+// Convert Fahrenheit to Celsius
+function fahrenheitToCelsius(fahrenheit) {
+    return Math.round((fahrenheit - 32) * 5 / 9);
+}
+
+// Get temperature in selected unit
+function getTemperature(fahrenheitTemp) {
+    const unit = getSelectedUnit();
+    if (unit === 'C') {
+        return fahrenheitToCelsius(fahrenheitTemp);
+    }
+    return fahrenheitTemp;
+}
+
 // Format datetime to readable time
 function formatTime(datetime) {
     const date = new Date(datetime);
@@ -33,11 +56,15 @@ function createWeatherCard(hour) {
     const date = new Date(hour.datetime);
     const timeStr = formatTime(hour.datetime);
     const dateStr = formatDate(hour.datetime);
+    
+    // Get temperature in selected unit
+    const displayTemp = getTemperature(hour.temperature);
+    const displayUnit = getSelectedUnit();
 
     card.innerHTML = `
         <div class="time">${dateStr} ${timeStr}</div>
         <div class="icon-phrase">${hour.iconPhrase}</div>
-        <div class="temperature">${hour.temperature}°${hour.temperatureUnit}</div>
+        <div class="temperature">${displayTemp}°${displayUnit}</div>
         <div class="precipitation">
             <div class="precipitation-item">
                 <span class="precipitation-label">Precipitation Chance</span>
@@ -51,6 +78,17 @@ function createWeatherCard(hour) {
     `;
 
     return card;
+}
+
+// Render weather cards from stored forecast data
+function renderWeatherCards() {
+    const gridEl = document.getElementById('weather-grid');
+    gridEl.innerHTML = '';
+    
+    forecastData.forEach(hour => {
+        const card = createWeatherCard(hour);
+        gridEl.appendChild(card);
+    });
 }
 
 // Fetch weather data from API
@@ -80,14 +118,11 @@ async function fetchWeather() {
             document.title = `Weather - ${data.location}`;
         }
 
-        // Clear previous data
-        gridEl.innerHTML = '';
+        // Store forecast data for unit conversion
+        forecastData = data.forecast;
 
-        // Create cards for each hour
-        data.forecast.forEach(hour => {
-            const card = createWeatherCard(hour);
-            gridEl.appendChild(card);
-        });
+        // Render weather cards
+        renderWeatherCards();
 
         // Show container, hide loading
         loadingEl.style.display = 'none';
@@ -101,5 +136,20 @@ async function fetchWeather() {
     }
 }
 
-// Fetch weather on page load
-document.addEventListener('DOMContentLoaded', fetchWeather);
+// Handle temperature unit toggle
+function initUnitToggle() {
+    const unitRadios = document.querySelectorAll('input[name="temp-unit"]');
+    unitRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            if (forecastData.length > 0) {
+                renderWeatherCards();
+            }
+        });
+    });
+}
+
+// Fetch weather on page load and initialize unit toggle
+document.addEventListener('DOMContentLoaded', () => {
+    initUnitToggle();
+    fetchWeather();
+});
