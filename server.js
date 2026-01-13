@@ -2,7 +2,12 @@ const express = require('express');
 const puppeteer = require('puppeteer');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const sharp = require('sharp');
 require('dotenv').config();
+
+// Screenshots directory
+const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -26,6 +31,14 @@ let cachedWeatherData = null;
 let lastFetchTime = null;
 let isFetching = false;
 
+// Ensure screenshots directory exists
+function ensureScreenshotsDirExists() {
+  if (!fs.existsSync(SCREENSHOTS_DIR)) {
+    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+    console.log(`Created screenshots directory: ${SCREENSHOTS_DIR}`);
+  }
+}
+
 async function initBrowser() {
   if (!browser) {
     browser = await puppeteer.launch({
@@ -39,6 +52,26 @@ async function initBrowser() {
     });
   }
   return browser;
+}
+
+// Take a screenshot and save as BMP
+async function saveScreenshotAsBmp(page) {
+  try {
+    ensureScreenshotsDirExists();
+    
+    // Take screenshot as PNG buffer
+    const pngBuffer = await page.screenshot({ fullPage: false });
+    
+    // Convert to BMP using sharp and save
+    const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
+    await sharp(pngBuffer)
+      .toFormat('bmp')
+      .toFile(bmpPath);
+    
+    console.log(`Screenshot saved to: ${bmpPath}`);
+  } catch (error) {
+    console.error('Error saving screenshot:', error.message);
+  }
 }
 
 // Scrape weather data from AccuWeather
@@ -341,6 +374,9 @@ async function scrapeWeatherData() {
         };
       }).filter(hour => hour.temperature !== null);
     });
+
+    // Take screenshot before closing the page
+    await saveScreenshotAsBmp(page);
 
     await page.close();
 
