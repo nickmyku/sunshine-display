@@ -67,11 +67,11 @@ function createWeatherCard(hour) {
         <div class="temperature">${displayTemp}°${displayUnit}</div>
         <div class="precipitation">
             <div class="precipitation-item">
-                <span class="precipitation-label">Precipitation Chance</span>
+                <span class="precipitation-label">Precipitation</span>
                 <span class="precipitation-value">${hour.precipitation}%</span>
             </div>
             <div class="precipitation-item">
-                <span class="precipitation-label">Precipitation Amount</span>
+                <span class="precipitation-label">Amount</span>
                 <span class="precipitation-value">${hour.precipitationAmount.toFixed(2)} ${hour.precipitationUnit}</span>
             </div>
         </div>
