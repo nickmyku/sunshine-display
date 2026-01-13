@@ -1,17 +1,14 @@
 // Store forecast data for unit conversion
 let forecastData = [];
-
 // Get current temperature unit (default to Celsius)
 function getSelectedUnit() {
     const celsiusRadio = document.getElementById('unit-celsius');
     return celsiusRadio && celsiusRadio.checked ? 'C' : 'F';
 }
-
 // Convert Fahrenheit to Celsius
 function fahrenheitToCelsius(fahrenheit) {
     return Math.round((fahrenheit - 32) * 5 / 9);
 }
-
 // Get temperature in selected unit
 function getTemperature(fahrenheitTemp) {
     const unit = getSelectedUnit();
@@ -20,7 +17,6 @@ function getTemperature(fahrenheitTemp) {
     }
     return fahrenheitTemp;
 }
-
 // Format datetime to readable time
 function formatTime(datetime) {
     const date = new Date(datetime);
@@ -31,14 +27,12 @@ function formatTime(datetime) {
     const displayMinutes = minutes.toString().padStart(2, '0');
     return `${displayHours}:${displayMinutes} ${ampm}`;
 }
-
 // Format date for display
 function formatDate(datetime) {
     const date = new Date(datetime);
     const today = new Date();
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
-
     if (date.toDateString() === today.toDateString()) {
         return 'Today';
     } else if (date.toDateString() === tomorrow.toDateString()) {
@@ -47,7 +41,6 @@ function formatDate(datetime) {
         return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
     }
 }
-
 // Create weather card element
 function createWeatherCard(hour) {
     const card = document.createElement('div');
@@ -59,7 +52,6 @@ function createWeatherCard(hour) {
     // Get temperature in selected unit
     const displayTemp = getTemperature(hour.temperature);
     const displayUnit = getSelectedUnit();
-
     card.innerHTML = `
         <div class="time">${timeStr}</div>
         <div class="icon-phrase">${hour.iconPhrase}</div>
@@ -75,7 +67,6 @@ function createWeatherCard(hour) {
             </div>
         </div>
     `;
-
     return card;
 }
 
@@ -83,13 +74,29 @@ function createWeatherCard(hour) {
 function renderWeatherCards() {
     const gridEl = document.getElementById('weather-grid');
     gridEl.innerHTML = '';
-    
+
     forecastData.forEach(hour => {
         const card = createWeatherCard(hour);
         gridEl.appendChild(card);
     });
-}
 
+    
+          
+            
+    
+
+          
+          Expand Down
+          
+            
+    
+
+          
+          Expand Up
+    
+    @@ -147,8 +167,23 @@ function initUnitToggle() {
+  
+}
 // Fetch weather data from API
 async function fetchWeather() {
     const loadingEl = document.getElementById('loading');
@@ -97,32 +104,25 @@ async function fetchWeather() {
     const containerEl = document.getElementById('weather-container');
     const gridEl = document.getElementById('weather-grid');
     const locationEl = document.getElementById('location-name');
-
     // Show loading, hide others
     loadingEl.style.display = 'block';
     errorEl.style.display = 'none';
     containerEl.style.display = 'none';
-
     try {
         const response = await fetch('/api/hourly-forecast');
         const data = await response.json();
-
         if (!response.ok) {
             throw new Error(data.error || 'Failed to fetch weather data');
         }
-
         // Update the location name from scraped data
         if (data.location) {
             locationEl.textContent = data.location;
             document.title = `Weather - ${data.location}`;
         }
-
         // Store forecast data for unit conversion
         forecastData = data.forecast;
-
         // Render weather cards
         renderWeatherCards();
-
         // Show container, hide loading
         loadingEl.style.display = 'none';
         containerEl.style.display = 'block';
@@ -134,7 +134,6 @@ async function fetchWeather() {
         locationEl.textContent = 'Location unavailable';
     }
 }
-
 // Handle temperature unit toggle
 function initUnitToggle() {
     const unitRadios = document.querySelectorAll('input[name="temp-unit"]');
