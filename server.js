@@ -28,22 +28,9 @@ const PORT = (() => {
 // SECURITY MIDDLEWARE
 // ===========================================
 
-// Security headers via Helmet
-// Note: 'unsafe-inline' is needed for scriptSrc to support inline event handlers
-// and ensure compatibility with headless browser screenshot capture
+// Security headers via Helmet (CSP disabled)
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'", `http://localhost:${PORT}`],
-      imgSrc: ["'self'", "data:"],
-      connectSrc: ["'self'", `http://localhost:${PORT}`],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      frameAncestors: ["'none'"],
-    },
-  },
+  contentSecurityPolicy: false,
   crossOriginEmbedderPolicy: false, // Allow loading resources
 }));
 
