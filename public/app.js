@@ -79,12 +79,32 @@ function createWeatherCard(hour) {
     return card;
 }
 
-// Render weather cards from stored forecast data
+// Calculate number of cards per row based on container width
+function getCardsPerRow() {
+    const gridEl = document.getElementById('weather-grid');
+    const containerWidth = gridEl.offsetWidth;
+    const minCardWidth = 140; // matches CSS minmax(140px, 1fr)
+    const gap = 10; // matches CSS gap: 10px
+    
+    // Calculate how many cards fit in a row
+    // Each card needs minCardWidth + gap (except the last card in row)
+    const cardsPerRow = Math.floor((containerWidth + gap) / (minCardWidth + gap));
+    return Math.max(1, cardsPerRow); // At least 1 card per row
+}
+
+// Render weather cards from stored forecast data (limited to 2 rows)
 function renderWeatherCards() {
     const gridEl = document.getElementById('weather-grid');
     gridEl.innerHTML = '';
     
-    forecastData.forEach(hour => {
+    // Calculate how many cards to display (2 full rows)
+    const cardsPerRow = getCardsPerRow();
+    const maxCards = cardsPerRow * 2; // 2 rows
+    
+    // Limit the data to 2 rows worth of cards
+    const displayData = forecastData.slice(0, maxCards);
+    
+    displayData.forEach(hour => {
         const card = createWeatherCard(hour);
         gridEl.appendChild(card);
     });
@@ -147,8 +167,23 @@ function initUnitToggle() {
     });
 }
 
+// Handle window resize to recalculate card display
+function initResizeHandler() {
+    let resizeTimeout;
+    window.addEventListener('resize', () => {
+        // Debounce resize events
+        clearTimeout(resizeTimeout);
+        resizeTimeout = setTimeout(() => {
+            if (forecastData.length > 0) {
+                renderWeatherCards();
+            }
+        }, 150);
+    });
+}
+
 // Fetch weather on page load and initialize unit toggle
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
+    initResizeHandler();
     fetchWeather();
 });
