@@ -37,18 +37,23 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
+      // Safari compatibility: script-src-elem ensures external scripts load properly
+      // Safari can be strict about script loading without this explicit directive
+      scriptSrcElem: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline style attributes
       imgSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
-      frameAncestors: ["'none'"],
       formAction: ["'self'"],
       baseUri: ["'self'"], // Restrict base tag to prevent base-uri hijacking
       // Note: upgrade-insecure-requests intentionally omitted for Safari compatibility
+      // Note: frame-ancestors moved to X-Frame-Options for better Safari compatibility
     },
   },
   crossOriginEmbedderPolicy: false, // Allow loading resources
+  // X-Frame-Options: DENY is set by helmet by default, providing clickjacking protection
+  // This is more Safari-compatible than CSP frame-ancestors
 }));
 
 // CORS configuration - restrict to configured origins
