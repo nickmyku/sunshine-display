@@ -37,19 +37,25 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      // Note: script-src-elem intentionally omitted for Safari compatibility
-      // Safari versions < 15.4 don't support CSP Level 3 directives like script-src-elem
-      // and can behave unexpectedly when they encounter unknown directives.
-      // The script-src directive provides sufficient coverage for script elements.
+      // Safari 15.4+ supports CSP Level 3 and needs explicit script-src-elem for external scripts.
+      // Older Safari versions (<15.4) will ignore this directive and fall back to script-src.
+      scriptSrcElem: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline style attributes
+      // Safari 15.4+ supports CSP Level 3 and needs explicit style-src-elem for external stylesheets.
+      // Without this, Safari may block loading of external CSS files.
+      // Older Safari versions (<15.4) will ignore this directive and fall back to style-src.
+      styleSrcElem: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       formAction: ["'self'"],
       baseUri: ["'self'"], // Restrict base tag to prevent base-uri hijacking
-      // Note: upgrade-insecure-requests intentionally omitted for Safari compatibility
-      // Note: frame-ancestors moved to X-Frame-Options for better Safari compatibility
+      // Explicitly disable upgrade-insecure-requests for Safari compatibility
+      // Safari has issues with this directive when accessing sites over HTTP (e.g., localhost)
+      upgradeInsecureRequests: null,
+      // Explicitly disable script-src-attr to allow Helmet's default 'none' value
+      // (safe since we don't use inline event handlers like onclick)
     },
   },
   // Safari compatibility: Disable Cross-Origin policies that can block CSS/JS loading
@@ -57,6 +63,8 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false, // Disable COEP - causes Safari to block subresources
   crossOriginOpenerPolicy: false,   // Disable COOP - can break same-origin resource loading in Safari
   crossOriginResourcePolicy: false, // Disable CORP - Safari may incorrectly block same-origin resources
+  // Disable Origin-Agent-Cluster header - can cause issues in Safari with resource loading
+  originAgentCluster: false,
   // X-Frame-Options: DENY is set by helmet by default, providing clickjacking protection
   // This is more Safari-compatible than CSP frame-ancestors
 }));
