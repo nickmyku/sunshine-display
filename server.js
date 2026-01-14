@@ -29,6 +29,9 @@ const PORT = (() => {
 // ===========================================
 
 // Security headers via Helmet with CSP enabled
+// Note: upgradeInsecureRequests is omitted for Safari compatibility - Safari has issues
+// with this directive when accessing sites over HTTP (e.g., localhost development).
+// For production HTTPS deployments, this should be handled at the reverse proxy level.
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
@@ -41,7 +44,8 @@ app.use(helmet({
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       formAction: ["'self'"],
-      upgradeInsecureRequests: [],
+      baseUri: ["'self'"], // Restrict base tag to prevent base-uri hijacking
+      // Note: upgrade-insecure-requests intentionally omitted for Safari compatibility
     },
   },
   crossOriginEmbedderPolicy: false, // Allow loading resources
