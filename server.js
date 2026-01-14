@@ -104,6 +104,18 @@ app.use('/api/', apiLimiter);
 // Standard middleware
 app.use(express.json({ limit: '10kb' })); // Limit body size
 
+// Always serve favicon.ico (some browsers request it unconditionally)
+// Use sendFile callback instead of fs.existsSync() to avoid false negatives on edge cases.
+app.get('/favicon.ico', (req, res) => {
+  res.setHeader('Content-Type', 'image/x-icon');
+  res.sendFile('favicon.ico', { root: path.join(__dirname, 'public') }, (err) => {
+    if (err) {
+      // Express will set appropriate status codes (e.g., 404) on error objects when available.
+      res.status(err.statusCode || 404).end();
+    }
+  });
+});
+
 // Serve static files with explicit MIME types for Safari compatibility
 // Safari with X-Content-Type-Options: nosniff requires exact MIME types
 app.use(express.static(path.join(__dirname, 'public'), {
@@ -775,18 +787,6 @@ app.get('/api/hourly-forecast', async (req, res) => {
     res.status(500).json({ 
       error: 'Failed to fetch weather data. Please try again later.' 
     });
-  }
-});
-
-// Explicit favicon route to ensure it's always accessible
-// This handles the case where browsers request /favicon.ico directly
-app.get('/favicon.ico', (req, res) => {
-  const faviconPath = path.join(__dirname, 'public', 'favicon.ico');
-  if (fs.existsSync(faviconPath)) {
-    res.setHeader('Content-Type', 'image/x-icon');
-    res.sendFile(faviconPath);
-  } else {
-    res.status(404).end();
   }
 });
 
