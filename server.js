@@ -28,9 +28,22 @@ const PORT = (() => {
 // SECURITY MIDDLEWARE
 // ===========================================
 
-// Security headers via Helmet (CSP disabled)
+// Security headers via Helmet with CSP enabled
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline style attributes
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      formAction: ["'self'"],
+      upgradeInsecureRequests: [],
+    },
+  },
   crossOriginEmbedderPolicy: false, // Allow loading resources
 }));
 
