@@ -51,8 +51,11 @@ app.use(helmet({
       objectSrc: ["'none'"],
       formAction: ["'self'"],
       baseUri: ["'self'"], // Restrict base tag to prevent base-uri hijacking
-      // Note: upgrade-insecure-requests intentionally omitted for Safari compatibility
-      // Note: frame-ancestors moved to X-Frame-Options for better Safari compatibility
+      // Explicitly disable upgrade-insecure-requests for Safari compatibility
+      // Safari has issues with this directive when accessing sites over HTTP (e.g., localhost)
+      upgradeInsecureRequests: null,
+      // Explicitly disable script-src-attr to allow Helmet's default 'none' value
+      // (safe since we don't use inline event handlers like onclick)
     },
   },
   // Safari compatibility: Disable Cross-Origin policies that can block CSS/JS loading
