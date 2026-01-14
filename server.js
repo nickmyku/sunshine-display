@@ -778,6 +778,18 @@ app.get('/api/hourly-forecast', async (req, res) => {
   }
 });
 
+// Explicit favicon route to ensure it's always accessible
+// This handles the case where browsers request /favicon.ico directly
+app.get('/favicon.ico', (req, res) => {
+  const faviconPath = path.join(__dirname, 'public', 'favicon.ico');
+  if (fs.existsSync(faviconPath)) {
+    res.setHeader('Content-Type', 'image/x-icon');
+    res.sendFile(faviconPath);
+  } else {
+    res.status(404).end();
+  }
+});
+
 // Serve the main page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
