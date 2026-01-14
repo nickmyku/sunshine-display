@@ -37,9 +37,10 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'"],
-      // Safari compatibility: script-src-elem ensures external scripts load properly
-      // Safari can be strict about script loading without this explicit directive
-      scriptSrcElem: ["'self'"],
+      // Note: script-src-elem intentionally omitted for Safari compatibility
+      // Safari versions < 15.4 don't support CSP Level 3 directives like script-src-elem
+      // and can behave unexpectedly when they encounter unknown directives.
+      // The script-src directive provides sufficient coverage for script elements.
       styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for inline style attributes
       imgSrc: ["'self'", "data:"],
       connectSrc: ["'self'"],
