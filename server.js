@@ -75,6 +75,11 @@ app.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
 // AccuWeather URL for Culver City hourly forecast
 const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093';
+// AccuWeather URL for tomorrow's hourly forecast
+const ACCUWEATHER_TOMORROW_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093?day=2';
+
+// Threshold for fetching tomorrow's data (hours remaining in day)
+const TOMORROW_FETCH_THRESHOLD_HOURS = 12;
 
 // Data refresh interval (1 hour in milliseconds)
 const DATA_REFRESH_INTERVAL = 60 * 60 * 1000;
@@ -224,11 +229,19 @@ async function saveScreenshotAsBmp() {
   }
 }
 
-// Scrape weather data from AccuWeather
-async function scrapeWeatherData() {
+// Calculate hours remaining until midnight
+function getHoursRemainingInDay() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0); // Set to next midnight
+  const msRemaining = midnight.getTime() - now.getTime();
+  return msRemaining / (1000 * 60 * 60);
+}
+
+// Scrape hourly forecast data from a specific AccuWeather URL
+async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
   let page = null;
   try {
-    const browserInstance = await initBrowser();
     page = await browserInstance.newPage();
     
     // Set user agent and viewport to avoid blocking
@@ -245,7 +258,7 @@ async function scrapeWeatherData() {
     });
     
     // Navigate to AccuWeather page
-    await page.goto(ACCUWEATHER_URL, { 
+    await page.goto(url, { 
       waitUntil: 'networkidle2',
       timeout: 60000 
     });
@@ -269,67 +282,70 @@ async function scrapeWeatherData() {
       console.warn('Wait for selectors timed out, attempting to extract data anyway...');
     }
 
-    // Extract the city/location name from the page
-    const locationName = await page.evaluate(() => {
-      // Try multiple selectors to find the location name
-      const locationSelectors = [
-        '.subnav-title',
-        '.header-city-link',
-        '.current-city',
-        '[data-qa="headerLocation"]',
-        '.location-name',
-        '.header-loc',
-        'h1.location',
-        '.subnav .title',
-        '.header .location'
-      ];
-      
-      let rawLocation = null;
-      
-      for (const selector of locationSelectors) {
-        const elem = document.querySelector(selector);
-        if (elem && elem.textContent.trim()) {
-          rawLocation = elem.textContent.trim();
-          break;
-        }
-      }
-      
-      // Try to find location in the page title or meta tags
-      if (!rawLocation) {
-        const pageTitle = document.title;
-        if (pageTitle) {
-          // AccuWeather titles are typically like "City Name Weather - AccuWeather"
-          const titleMatch = pageTitle.match(/^(.+?)\s*(?:Weather|Hourly|Daily|Forecast)/i);
-          if (titleMatch) {
-            rawLocation = titleMatch[1].trim();
-          }
-        }
-      }
-      
-      // Fallback: look for any header element with location-like content
-      if (!rawLocation) {
-        const headers = document.querySelectorAll('h1, h2, .header-title');
-        for (const header of headers) {
-          const text = header.textContent.trim();
-          // Check if it looks like a location (contains city-like patterns)
-          if (text && text.length < 100 && !text.toLowerCase().includes('hourly') && !text.toLowerCase().includes('forecast')) {
-            rawLocation = text;
+    // Extract the city/location name from the page (only for first page)
+    let locationName = null;
+    if (!isTomorrow) {
+      locationName = await page.evaluate(() => {
+        // Try multiple selectors to find the location name
+        const locationSelectors = [
+          '.subnav-title',
+          '.header-city-link',
+          '.current-city',
+          '[data-qa="headerLocation"]',
+          '.location-name',
+          '.header-loc',
+          'h1.location',
+          '.subnav .title',
+          '.header .location'
+        ];
+        
+        let rawLocation = null;
+        
+        for (const selector of locationSelectors) {
+          const elem = document.querySelector(selector);
+          if (elem && elem.textContent.trim()) {
+            rawLocation = elem.textContent.trim();
             break;
           }
         }
-      }
-      
-      // Remove temperature from the location name (e.g., "Culver City 72°" -> "Culver City")
-      if (rawLocation) {
-        // Remove temperature patterns like "72°", "72°F", "72 °F", "-5°C", etc.
-        rawLocation = rawLocation.replace(/\s*-?\d+\s*°[FCfc]?\s*$/g, '').trim();
-      }
-      
-      return rawLocation;
-    });
+        
+        // Try to find location in the page title or meta tags
+        if (!rawLocation) {
+          const pageTitle = document.title;
+          if (pageTitle) {
+            // AccuWeather titles are typically like "City Name Weather - AccuWeather"
+            const titleMatch = pageTitle.match(/^(.+?)\s*(?:Weather|Hourly|Daily|Forecast)/i);
+            if (titleMatch) {
+              rawLocation = titleMatch[1].trim();
+            }
+          }
+        }
+        
+        // Fallback: look for any header element with location-like content
+        if (!rawLocation) {
+          const headers = document.querySelectorAll('h1, h2, .header-title');
+          for (const header of headers) {
+            const text = header.textContent.trim();
+            // Check if it looks like a location (contains city-like patterns)
+            if (text && text.length < 100 && !text.toLowerCase().includes('hourly') && !text.toLowerCase().includes('forecast')) {
+              rawLocation = text;
+              break;
+            }
+          }
+        }
+        
+        // Remove temperature from the location name (e.g., "Culver City 72°" -> "Culver City")
+        if (rawLocation) {
+          // Remove temperature patterns like "72°", "72°F", "72 °F", "-5°C", etc.
+          rawLocation = rawLocation.replace(/\s*-?\d+\s*°[FCfc]?\s*$/g, '').trim();
+        }
+        
+        return rawLocation;
+      });
+    }
 
     // Extract hourly forecast data
-    const forecastData = await page.evaluate(() => {
+    const forecastData = await page.evaluate((isTomorrowPage) => {
       // AccuWeather uses .accordion-item.hour for each hourly forecast card
       let cards = Array.from(document.querySelectorAll('.accordion-item.hour'));
       
@@ -351,6 +367,11 @@ async function scrapeWeatherData() {
       cards = cards.slice(0, 16);
       
       const now = new Date();
+      // For tomorrow's page, set base date to tomorrow
+      const baseDate = new Date(now);
+      if (isTomorrowPage) {
+        baseDate.setDate(baseDate.getDate() + 1);
+      }
       
       return cards.map((card, index) => {
         // Extract time from h2.date or other time elements
@@ -499,15 +520,15 @@ async function scrapeWeatherData() {
         
         const isDaylight = hour24 >= 6 && hour24 < 20;
         
-        // Create datetime
-        const forecastDate = new Date(now);
+        // Create datetime using baseDate (today or tomorrow)
+        const forecastDate = new Date(baseDate);
         forecastDate.setHours(hour24, 0, 0, 0);
         forecastDate.setMinutes(0);
         forecastDate.setSeconds(0);
         forecastDate.setMilliseconds(0);
         
-        // If the time is earlier than current time, assume it's tomorrow
-        if (forecastDate < now) {
+        // For today's page: if the time is earlier than current time, assume it's tomorrow
+        if (!isTomorrowPage && forecastDate < now) {
           forecastDate.setDate(forecastDate.getDate() + 1);
         }
         
@@ -523,15 +544,71 @@ async function scrapeWeatherData() {
           isDaylight: isDaylight
         };
       }).filter(hour => hour.temperature !== null);
-    });
-
-    // Validate that data was successfully scraped
-    if (forecastData.length === 0) {
-      await page.close();
-      throw new Error('No forecast data found on page. The page structure may have changed.');
-    }
+    }, isTomorrow);
 
     await page.close();
+
+    return {
+      locationName,
+      forecastData
+    };
+  } catch (error) {
+    if (page) {
+      await page.close().catch(() => {});
+    }
+    throw error;
+  }
+}
+
+// Scrape weather data from AccuWeather
+async function scrapeWeatherData() {
+  try {
+    const browserInstance = await initBrowser();
+    
+    // Check if we need to fetch tomorrow's data
+    const hoursRemaining = getHoursRemainingInDay();
+    const shouldFetchTomorrow = hoursRemaining < TOMORROW_FETCH_THRESHOLD_HOURS;
+    
+    console.log(`Hours remaining in today: ${hoursRemaining.toFixed(1)}`);
+    console.log(`Should fetch tomorrow's data: ${shouldFetchTomorrow}`);
+    
+    // Scrape today's hourly forecast
+    console.log('Scraping today\'s hourly forecast...');
+    const todayResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_URL, false);
+    
+    let allForecastData = todayResult.forecastData;
+    const locationName = todayResult.locationName;
+    
+    // If less than 12 hours remaining in today, also fetch tomorrow's data
+    if (shouldFetchTomorrow) {
+      console.log('Less than 12 hours remaining in today, fetching tomorrow\'s hourly forecast...');
+      try {
+        const tomorrowResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_TOMORROW_URL, true);
+        
+        if (tomorrowResult.forecastData.length > 0) {
+          // Combine today's and tomorrow's data, avoiding duplicates
+          const existingDatetimes = new Set(allForecastData.map(h => h.datetime));
+          const newTomorrowData = tomorrowResult.forecastData.filter(h => !existingDatetimes.has(h.datetime));
+          allForecastData = [...allForecastData, ...newTomorrowData];
+          
+          console.log(`Added ${newTomorrowData.length} hours from tomorrow's forecast`);
+        }
+      } catch (tomorrowError) {
+        console.error('Error fetching tomorrow\'s data:', tomorrowError.message);
+        // Continue with today's data only
+      }
+    }
+    
+    // Validate that data was successfully scraped
+    if (allForecastData.length === 0) {
+      throw new Error('No forecast data found on page. The page structure may have changed.');
+    }
+    
+    // Sort by datetime to ensure chronological order
+    allForecastData.sort((a, b) => new Date(a.datetime) - new Date(b.datetime));
+    
+    // Limit to 16 hours total
+    allForecastData = allForecastData.slice(0, 16);
 
     // Use scraped location or fallback to URL-based name
     const scrapedLocation = locationName || 'Unknown Location';
@@ -540,8 +617,8 @@ async function scrapeWeatherData() {
     console.log('\n========== SCRAPED TEMPERATURES ==========');
     console.log(`Location: ${scrapedLocation}`);
     console.log(`Timestamp: ${new Date().toISOString()}`);
-    console.log(`Found ${forecastData.length} hourly forecasts:\n`);
-    forecastData.forEach((hour, index) => {
+    console.log(`Found ${allForecastData.length} hourly forecasts:\n`);
+    allForecastData.forEach((hour, index) => {
       const date = new Date(hour.datetime);
       const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
       const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
@@ -551,12 +628,9 @@ async function scrapeWeatherData() {
 
     return {
       location: scrapedLocation,
-      forecast: forecastData
+      forecast: allForecastData
     };
   } catch (error) {
-    if (page) {
-      await page.close().catch(() => {});
-    }
     throw error;
   }
 }
