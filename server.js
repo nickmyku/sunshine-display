@@ -116,6 +116,8 @@ app.use(express.static(path.join(__dirname, 'public'), {
       res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
     } else if (filePath.endsWith('.html')) {
       res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    } else if (filePath.endsWith('.ico')) {
+      res.setHeader('Content-Type', 'image/x-icon');
     }
   }
 }));
