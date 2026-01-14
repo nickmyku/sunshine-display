@@ -52,7 +52,11 @@ app.use(helmet({
       // Note: frame-ancestors moved to X-Frame-Options for better Safari compatibility
     },
   },
-  crossOriginEmbedderPolicy: false, // Allow loading resources
+  // Safari compatibility: Disable Cross-Origin policies that can block CSS/JS loading
+  // Safari has known issues with COEP, COOP, and CORP headers causing resource loading failures
+  crossOriginEmbedderPolicy: false, // Disable COEP - causes Safari to block subresources
+  crossOriginOpenerPolicy: false,   // Disable COOP - can break same-origin resource loading in Safari
+  crossOriginResourcePolicy: false, // Disable CORP - Safari may incorrectly block same-origin resources
   // X-Frame-Options: DENY is set by helmet by default, providing clickjacking protection
   // This is more Safari-compatible than CSP frame-ancestors
 }));
@@ -91,7 +95,22 @@ app.use('/api/', apiLimiter);
 
 // Standard middleware
 app.use(express.json({ limit: '10kb' })); // Limit body size
-app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve static files with explicit MIME types for Safari compatibility
+// Safari with X-Content-Type-Options: nosniff requires exact MIME types
+app.use(express.static(path.join(__dirname, 'public'), {
+  setHeaders: (res, filePath) => {
+    // Ensure correct MIME types for CSS and JavaScript files
+    // Safari may block resources with incorrect or missing Content-Type
+    if (filePath.endsWith('.css')) {
+      res.setHeader('Content-Type', 'text/css; charset=UTF-8');
+    } else if (filePath.endsWith('.js')) {
+      res.setHeader('Content-Type', 'application/javascript; charset=UTF-8');
+    } else if (filePath.endsWith('.html')) {
+      res.setHeader('Content-Type', 'text/html; charset=UTF-8');
+    }
+  }
+}));
 
 // Serve screenshots directory as static files
 app.use('/screenshots', express.static(SCREENSHOTS_DIR));

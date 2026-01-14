@@ -137,6 +137,13 @@ app.use(helmet());
 
 **Status:** ✅ Fixed - Helmet middleware added with custom CSP enabled
 
+**Safari Compatibility Notes (Updated January 14, 2026):**
+Safari has known compatibility issues with certain security headers that can cause CSS and JavaScript loading failures:
+- `crossOriginEmbedderPolicy: false` - Disabled to prevent Safari from blocking subresources
+- `crossOriginOpenerPolicy: false` - Disabled to prevent same-origin resource loading issues in Safari
+- `crossOriginResourcePolicy: false` - Disabled as Safari may incorrectly block same-origin resources
+- Explicit MIME types set for static CSS/JS files (Safari with `X-Content-Type-Options: nosniff` requires exact MIME types)
+
 ---
 
 ### 6. 🟠 MEDIUM - Puppeteer Sandbox Disabled
