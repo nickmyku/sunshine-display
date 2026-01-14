@@ -226,10 +226,20 @@ function initRefreshButton() {
     });
 }
 
-// Fetch weather on page load and initialize controls
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize the app
+function init() {
     initUnitToggle();
     initCardsCountInput();
     initRefreshButton();
     fetchWeather();
-});
+}
+
+// Fetch weather on page load and initialize controls
+// Use a robust initialization pattern for Safari compatibility
+// Safari can sometimes fire DOMContentLoaded before the script registers its listener
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    // DOM is already ready (handles Safari timing edge case)
+    init();
+}
