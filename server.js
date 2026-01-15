@@ -684,7 +684,7 @@ async function scrapeWeatherData() {
     console.log(`Found ${allForecastData.length} hourly forecasts:\n`);
     allForecastData.forEach((hour, index) => {
       const date = new Date(hour.datetime);
-      const timeStr = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       console.log(`  ${index + 1}. ${dateStr} ${timeStr}: ${hour.temperature}°${hour.temperatureUnit} - ${hour.iconPhrase} (Precip: ${hour.precipitation}%)`);
     });
