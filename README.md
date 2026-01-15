@@ -16,6 +16,7 @@ A web application that displays hourly temperature and precipitation forecasts f
 - 📸 Automatic BMP screenshot capture of the UI
 - 🛡️ Security hardened (Helmet, rate limiting, CORS, CSP, XSS protection)
 - 🍎 Safari browser compatibility
+- 🕒 Time format toggle (regular/military)
 
 ## Setup
 

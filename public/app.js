@@ -1,10 +1,35 @@
 // Store forecast data for unit conversion
 let forecastData = [];
 
+const TIME_FORMAT_STORAGE_KEY = 'timeFormat';
+
 // Get current temperature unit (default to Celsius)
 function getSelectedUnit() {
     const celsiusRadio = document.getElementById('unit-celsius');
     return celsiusRadio && celsiusRadio.checked ? 'C' : 'F';
+}
+
+// Get current time format (default to regular/12-hour)
+function getSelectedTimeFormat() {
+    const regularRadio = document.getElementById('time-regular');
+    return regularRadio && regularRadio.checked ? '12' : '24';
+}
+
+function loadSavedTimeFormat() {
+    try {
+        const value = localStorage.getItem(TIME_FORMAT_STORAGE_KEY);
+        return value === '24' ? '24' : '12';
+    } catch {
+        return '12';
+    }
+}
+
+function saveTimeFormat(format) {
+    try {
+        localStorage.setItem(TIME_FORMAT_STORAGE_KEY, format === '24' ? '24' : '12');
+    } catch {
+        // Ignore storage errors (e.g., blocked in private mode)
+    }
 }
 
 // Convert Fahrenheit to Celsius
@@ -24,12 +49,15 @@ function getTemperature(fahrenheitTemp) {
 // Format datetime to readable time
 function formatTime(datetime) {
     const date = new Date(datetime);
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
+    if (Number.isNaN(date.getTime())) return '';
+
+    const timeFormat = getSelectedTimeFormat();
+    if (timeFormat === '12') {
+        // Regular time (12-hour): h:MM AM/PM
+        return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    }
     // Military time (24-hour): HH:MM
-    const displayHours = hours.toString().padStart(2, '0');
-    const displayMinutes = minutes.toString().padStart(2, '0');
-    return `${displayHours}:${displayMinutes}`;
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
 
 // Format date for display
@@ -208,6 +236,31 @@ function initUnitToggle() {
     });
 }
 
+// Handle time format toggle (regular/military)
+function initTimeToggle() {
+    const savedFormat = loadSavedTimeFormat();
+    const regularRadio = document.getElementById('time-regular');
+    const militaryRadio = document.getElementById('time-military');
+
+    if (regularRadio && militaryRadio) {
+        if (savedFormat === '24') {
+            militaryRadio.checked = true;
+        } else {
+            regularRadio.checked = true;
+        }
+    }
+
+    const timeRadios = document.querySelectorAll('input[name="time-format"]');
+    timeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            saveTimeFormat(getSelectedTimeFormat());
+            if (forecastData.length > 0) {
+                renderWeatherCards();
+            }
+        });
+    });
+}
+
 // Handle cards count input
 function initCardsCountInput() {
     const cardsInput = document.getElementById('cards-count');
@@ -229,6 +282,7 @@ function initRefreshButton() {
 // Fetch weather on page load and initialize controls
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
+    initTimeToggle();
     initCardsCountInput();
     initRefreshButton();
     fetchWeather();
