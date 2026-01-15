@@ -2,4 +2,5 @@ node_modules/
 .env
 .DS_Store
 *.log
-screenshots/
+screenshots/*
+!screenshots/eink-ui.png
