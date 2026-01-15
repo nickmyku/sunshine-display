@@ -2,4 +2,6 @@ node_modules/
 .env
 .DS_Store
 *.log
-screenshots/
+# Ignore screenshots by default, but keep the UI design preview in git
+screenshots/*
+!screenshots/ui-temp-precip-prominent.png
