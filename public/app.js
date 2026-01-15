@@ -80,50 +80,55 @@ function createWeatherCard(hour) {
     timeIconRow.appendChild(timeDiv);
     timeIconRow.appendChild(iconPhraseDiv);
     
+    // Primary metrics: Temperature + Precip chance (most prominent)
+    const primaryMetrics = document.createElement('div');
+    primaryMetrics.className = 'primary-metrics';
+
+    const tempMetric = document.createElement('div');
+    tempMetric.className = 'metric metric-temp';
+
     const temperatureDiv = document.createElement('div');
     temperatureDiv.className = 'temperature';
     temperatureDiv.textContent = `${displayTemp}°${displayUnit}`;
-    
-    const precipitationDiv = document.createElement('div');
-    precipitationDiv.className = 'precipitation';
-    
-    // First precipitation item
-    const precipItem1 = document.createElement('div');
-    precipItem1.className = 'precipitation-item';
-    
-    const precipLabel1 = document.createElement('span');
-    precipLabel1.className = 'precipitation-label';
-    precipLabel1.textContent = 'Precipitation';
-    
-    const precipValue1 = document.createElement('span');
-    precipValue1.className = 'precipitation-value';
-    precipValue1.textContent = `${hour.precipitation}%`;
-    
-    precipItem1.appendChild(precipLabel1);
-    precipItem1.appendChild(precipValue1);
-    
-    // Second precipitation item
-    const precipItem2 = document.createElement('div');
-    precipItem2.className = 'precipitation-item';
-    
-    const precipLabel2 = document.createElement('span');
-    precipLabel2.className = 'precipitation-label';
-    precipLabel2.textContent = 'Amount';
-    
-    const precipValue2 = document.createElement('span');
-    precipValue2.className = 'precipitation-value';
-    precipValue2.textContent = `${hour.precipitationAmount.toFixed(1)} ${sanitizeText(hour.precipitationUnit)}`;
-    
-    precipItem2.appendChild(precipLabel2);
-    precipItem2.appendChild(precipValue2);
-    
-    precipitationDiv.appendChild(precipItem1);
-    precipitationDiv.appendChild(precipItem2);
+
+    const tempLabel = document.createElement('div');
+    tempLabel.className = 'metric-label';
+    tempLabel.textContent = 'Temp';
+
+    tempMetric.appendChild(temperatureDiv);
+    tempMetric.appendChild(tempLabel);
+
+    const precipMetric = document.createElement('div');
+    precipMetric.className = 'metric metric-precip';
+
+    const precipChanceValue = document.createElement('div');
+    precipChanceValue.className = 'precip-chance-value';
+    precipChanceValue.textContent = `${hour.precipitation}%`;
+
+    const precipChanceLabel = document.createElement('div');
+    precipChanceLabel.className = 'metric-label';
+    precipChanceLabel.textContent = 'Precip';
+
+    precipMetric.appendChild(precipChanceValue);
+    precipMetric.appendChild(precipChanceLabel);
+
+    primaryMetrics.appendChild(tempMetric);
+    primaryMetrics.appendChild(precipMetric);
+
+    // Secondary details (de-emphasized)
+    const secondary = document.createElement('div');
+    secondary.className = 'secondary-details';
+
+    const precipAmountPill = document.createElement('div');
+    precipAmountPill.className = 'detail-pill';
+    precipAmountPill.textContent = `Amount: ${hour.precipitationAmount.toFixed(1)} ${sanitizeText(hour.precipitationUnit)}`;
+
+    secondary.appendChild(precipAmountPill);
     
     // Assemble the card
     card.appendChild(timeIconRow);
-    card.appendChild(temperatureDiv);
-    card.appendChild(precipitationDiv);
+    card.appendChild(primaryMetrics);
+    card.appendChild(secondary);
 
     return card;
 }

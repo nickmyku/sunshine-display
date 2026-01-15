@@ -56,7 +56,7 @@ header h2 {
 
 .weather-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
     gap: 10px;
     margin-bottom: 20px;
 }
@@ -64,7 +64,7 @@ header h2 {
 .weather-card {
     background: white;
     border-radius: 10px;
-    padding: 12px;
+    padding: 14px 14px 12px;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -82,12 +82,13 @@ header h2 {
 .time-icon-row {
     display: flex;
     align-items: baseline;
+    justify-content: space-between;
     gap: 8px;
     margin-bottom: 6px;
 }
 
 .time {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
     color: #666;
 }
@@ -99,6 +100,8 @@ header h2 {
 .icon-phrase {
     font-size: 0.75rem;
     color: #888;
+    text-align: right;
+    line-height: 1.1;
 }
 
 .weather-card.night .icon-phrase {
@@ -106,52 +109,80 @@ header h2 {
 }
 
 .temperature {
-    font-size: 1.75rem;
-    font-weight: bold;
+    font-size: 2.6rem;
+    font-weight: 800;
+    letter-spacing: -0.03em;
     color: #2196F3;
-    margin-bottom: 8px;
+    line-height: 1;
 }
 
 .weather-card.night .temperature {
     color: #64b5f6;
 }
 
-.precipitation {
+.primary-metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 8px;
+    margin-bottom: 10px;
+    align-items: end;
+}
+
+.metric {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    justify-content: flex-end;
+    min-height: 64px;
 }
 
-.precipitation-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 5px 6px;
-    background: #f5f5f5;
-    border-radius: 4px;
+.metric-label {
+    margin-top: 4px;
     font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(0, 0, 0, 0.45);
 }
 
-.weather-card.night .precipitation-item {
-    background: rgba(255, 255, 255, 0.1);
+.weather-card.night .metric-label {
+    color: rgba(255, 255, 255, 0.6);
 }
 
-.precipitation-label {
-    color: #666;
-    font-weight: 500;
+.metric-precip {
+    text-align: right;
 }
 
-.weather-card.night .precipitation-label {
-    color: #bdc3c7;
+.precip-chance-value {
+    font-size: 2.2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    color: #00ACC1;
 }
 
-.precipitation-value {
-    font-weight: bold;
-    color: #1976D2;
+.weather-card.night .precip-chance-value {
+    color: #4dd0e1;
 }
 
-.weather-card.night .precipitation-value {
-    color: #90caf9;
+.secondary-details {
+    display: flex;
+    justify-content: flex-start;
+    gap: 8px;
+}
+
+.detail-pill {
+    padding: 6px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 650;
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.65);
+}
+
+.weather-card.night .detail-pill {
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.75);
 }
 
 .refresh-btn {
@@ -264,7 +295,15 @@ header h2 {
     }
 
     .weather-grid {
-        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .temperature {
+        font-size: 2.3rem;
+    }
+
+    .precip-chance-value {
+        font-size: 2.0rem;
     }
 
     .unit-toggle-container {
