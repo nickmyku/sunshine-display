@@ -258,6 +258,129 @@ header h2 {
     opacity: 1;
 }
 
+body.eink {
+    background: #fff;
+    color: #000;
+}
+
+body.eink header {
+    color: #000;
+}
+
+body.eink header h1 {
+    text-shadow: none;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+}
+
+body.eink header h2 {
+    opacity: 1;
+}
+
+body.eink .header-emoji {
+    display: none;
+}
+
+body.eink .loading,
+body.eink .error,
+body.eink .weather-card,
+body.eink .unit-toggle-container {
+    background: #fff;
+    color: #000;
+    border: 2px solid #000;
+    box-shadow: none;
+}
+
+body.eink .error {
+    color: #000;
+}
+
+body.eink .weather-card {
+    border-radius: 6px;
+    transition: none;
+}
+
+body.eink .weather-card.night {
+    background: #fff;
+    color: #000;
+    border-style: dashed;
+}
+
+body.eink .weather-card:hover {
+    transform: none;
+}
+
+body.eink .time,
+body.eink .icon-phrase,
+body.eink .precipitation-label,
+body.eink .precipitation-value,
+body.eink .temperature {
+    color: #000;
+}
+
+body.eink .temperature {
+    font-size: 1.8rem;
+}
+
+body.eink .precipitation-item {
+    background: #fff;
+    border: 1px solid #000;
+}
+
+body.eink .unit-toggle {
+    background: #fff;
+    border: 2px solid #000;
+}
+
+body.eink .unit-toggle label {
+    color: #000;
+    border: 1px solid #000;
+    transition: none;
+}
+
+body.eink .unit-toggle input[type="radio"]:checked + label {
+    background: #000;
+    color: #fff;
+    box-shadow: none;
+}
+
+body.eink .unit-toggle label:hover {
+    color: #000;
+}
+
+body.eink .cards-count-input {
+    border-color: #000;
+    color: #000;
+    box-shadow: none;
+    transition: none;
+}
+
+body.eink .cards-count-input:focus {
+    border-color: #000;
+    box-shadow: none;
+}
+
+body.eink .refresh-btn {
+    background: #000;
+    color: #fff;
+    box-shadow: none;
+    transition: none;
+}
+
+body.eink .refresh-btn:hover,
+body.eink .refresh-btn:active {
+    transform: none;
+    background: #000;
+}
+
+body.eink .weather-card.night .time,
+body.eink .weather-card.night .icon-phrase,
+body.eink .weather-card.night .precipitation-label,
+body.eink .weather-card.night .precipitation-value,
+body.eink .weather-card.night .temperature {
+    color: #000;
+}
+
 @media (max-width: 768px) {
     header h1 {
         font-size: 2rem;

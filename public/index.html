@@ -8,10 +8,10 @@
     <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico">
     <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="eink">
     <div class="container">
         <header>
-            <h1>🌤️ Hourly Weather Forecast</h1>
+            <h1><span class="header-emoji" aria-hidden="true">🌤️</span> Hourly Weather Forecast</h1>
             <h2 id="location-name">Loading location...</h2>
         </header>
 
@@ -36,6 +36,13 @@
                 <label for="time-military">Military</label>
                 <input type="radio" id="time-regular" name="time-format" value="12">
                 <label for="time-regular">Regular</label>
+            </div>
+            <span class="unit-label">Display:</span>
+            <div class="unit-toggle display-toggle">
+                <input type="radio" id="display-eink" name="display-mode" value="eink" checked>
+                <label for="display-eink">E-Ink</label>
+                <input type="radio" id="display-color" name="display-mode" value="color">
+                <label for="display-color">Color</label>
             </div>
             <div class="cards-count-container">
                 <label for="cards-count" class="unit-label">Cards:</label>

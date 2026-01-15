@@ -2,6 +2,7 @@
 let forecastData = [];
 
 const TIME_FORMAT_STORAGE_KEY = 'timeFormat';
+const DISPLAY_MODE_STORAGE_KEY = 'displayMode';
 
 // Get current temperature unit (default to Celsius)
 function getSelectedUnit() {
@@ -15,6 +16,11 @@ function getSelectedTimeFormat() {
     return regularRadio && regularRadio.checked ? '12' : '24';
 }
 
+function getSelectedDisplayMode() {
+    const selected = document.querySelector('input[name="display-mode"]:checked');
+    return selected && selected.value === 'color' ? 'color' : 'eink';
+}
+
 function loadSavedTimeFormat() {
     try {
         const value = localStorage.getItem(TIME_FORMAT_STORAGE_KEY);
@@ -24,12 +30,33 @@ function loadSavedTimeFormat() {
     }
 }
 
+function loadSavedDisplayMode() {
+    try {
+        const value = localStorage.getItem(DISPLAY_MODE_STORAGE_KEY);
+        return value === 'color' ? 'color' : 'eink';
+    } catch {
+        return 'eink';
+    }
+}
+
 function saveTimeFormat(format) {
     try {
         localStorage.setItem(TIME_FORMAT_STORAGE_KEY, format === '24' ? '24' : '12');
     } catch {
         // Ignore storage errors (e.g., blocked in private mode)
     }
+}
+
+function saveDisplayMode(mode) {
+    try {
+        localStorage.setItem(DISPLAY_MODE_STORAGE_KEY, mode === 'color' ? 'color' : 'eink');
+    } catch {
+        // Ignore storage errors (e.g., blocked in private mode)
+    }
+}
+
+function applyDisplayMode(mode) {
+    document.body.classList.toggle('eink', mode !== 'color');
 }
 
 // Convert Fahrenheit to Celsius
@@ -261,6 +288,32 @@ function initTimeToggle() {
     });
 }
 
+// Handle display mode toggle (e-ink/color)
+function initDisplayModeToggle() {
+    const savedMode = loadSavedDisplayMode();
+    const einkRadio = document.getElementById('display-eink');
+    const colorRadio = document.getElementById('display-color');
+
+    if (einkRadio && colorRadio) {
+        if (savedMode === 'color') {
+            colorRadio.checked = true;
+        } else {
+            einkRadio.checked = true;
+        }
+    }
+
+    applyDisplayMode(savedMode);
+
+    const modeRadios = document.querySelectorAll('input[name="display-mode"]');
+    modeRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+            const mode = getSelectedDisplayMode();
+            saveDisplayMode(mode);
+            applyDisplayMode(mode);
+        });
+    });
+}
+
 // Handle cards count input
 function initCardsCountInput() {
     const cardsInput = document.getElementById('cards-count');
@@ -283,6 +336,7 @@ function initRefreshButton() {
 document.addEventListener('DOMContentLoaded', () => {
     initUnitToggle();
     initTimeToggle();
+    initDisplayModeToggle();
     initCardsCountInput();
     initRefreshButton();
     fetchWeather();
