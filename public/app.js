@@ -9,7 +9,7 @@ function getSelectedUnit() {
     return celsiusRadio && celsiusRadio.checked ? 'C' : 'F';
 }
 
-// Get current time format (default to regular/12-hour)
+// Get current time format (default to military/24-hour)
 function getSelectedTimeFormat() {
     const regularRadio = document.getElementById('time-regular');
     return regularRadio && regularRadio.checked ? '12' : '24';
@@ -18,9 +18,9 @@ function getSelectedTimeFormat() {
 function loadSavedTimeFormat() {
     try {
         const value = localStorage.getItem(TIME_FORMAT_STORAGE_KEY);
-        return value === '24' ? '24' : '12';
+        return value === '12' ? '12' : '24';
     } catch {
-        return '12';
+        return '24';
     }
 }
 
