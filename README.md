@@ -142,36 +142,19 @@ The application is optimized for cross-browser compatibility:
 
 5. **Frontend**: The web interface displays forecast cards with temperature, precipitation, and weather conditions. Users can toggle between Fahrenheit and Celsius.
 
-## Raspberry Pi Startup
+## Raspberry Pi
 
-To run the server automatically on Raspberry Pi boot:
+To run the server on a Raspberry Pi (assumes project is already installed):
 
-1. **Clone or copy the project** to your Pi (e.g. `/home/pi/accuweather-culver-city`).
+```bash
+./scripts/raspberry-pi/start.sh
+```
 
-2. **Install prerequisites** on the Pi:
-   ```bash
-   sudo apt update
-   sudo apt install -y nodejs npm chromium-browser
-   ```
-
-3. **Run the install script** (from the project directory):
-   ```bash
-   cd scripts/raspberry-pi
-   chmod +x install.sh
-   sudo ./install.sh
-   ```
-
-   To install to a different directory:
-   ```bash
-   sudo ./install.sh /path/to/install/dir
-   ```
-
-4. The server will start immediately and automatically on every boot.
-
-**Useful commands:**
-- `sudo systemctl status accuweather-culver-city` — Check status
-- `sudo systemctl restart accuweather-culver-city` — Restart
-- `sudo journalctl -u accuweather-culver-city -f` — View logs
+To run on startup, add to crontab: `crontab -e` then add:
+```
+@reboot sleep 30 && /home/pi/accuweather-culver-city/scripts/raspberry-pi/start.sh
+```
+(Adjust path if your project lives elsewhere.)
 
 ## Notes
 
