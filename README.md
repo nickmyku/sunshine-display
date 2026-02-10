@@ -142,6 +142,20 @@ The application is optimized for cross-browser compatibility:
 
 5. **Frontend**: The web interface displays forecast cards with temperature, precipitation, and weather conditions. Users can toggle between Fahrenheit and Celsius.
 
+## Raspberry Pi
+
+To run the server on a Raspberry Pi (assumes project is already installed):
+
+```bash
+./scripts/raspberry-pi/start.sh
+```
+
+To run on startup, add to crontab: `crontab -e` then add:
+```
+@reboot sleep 30 && /home/pi/accuweather-culver-city/scripts/raspberry-pi/start.sh
+```
+(Adjust path if your project lives elsewhere.)
+
 ## Notes
 
 - The app scrapes data directly from AccuWeather's website using Puppeteer
