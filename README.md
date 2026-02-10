@@ -147,12 +147,12 @@ The application is optimized for cross-browser compatibility:
 To run the server on a Raspberry Pi (assumes project is already installed):
 
 ```bash
-./scripts/raspberry-pi/start.sh
+./scripts/start.sh
 ```
 
 To run on startup, add to crontab: `crontab -e` then add:
 ```
-@reboot sleep 30 && /home/pi/accuweather-culver-city/scripts/raspberry-pi/start.sh
+@reboot sleep 30 && /home/pi-server/sunshin-display/scripts/start.sh
 ```
 (Adjust path if your project lives elsewhere.)
 
