@@ -12,6 +12,25 @@ require('dotenv').config();
 // Screenshots directory
 const SCREENSHOTS_DIR = path.join(__dirname, 'screenshots');
 
+// Debug logging helper - outputs timestamped, categorized messages to terminal
+const DEBUG = {
+  log: (category, ...args) => {
+    const ts = new Date().toISOString();
+    const prefix = `[${ts}] [${category}]`;
+    console.log(prefix, ...args);
+  },
+  warn: (category, ...args) => {
+    const ts = new Date().toISOString();
+    const prefix = `[${ts}] [${category}] WARN:`;
+    console.warn(prefix, ...args);
+  },
+  error: (category, ...args) => {
+    const ts = new Date().toISOString();
+    const prefix = `[${ts}] [${category}] ERROR:`;
+    console.error(prefix, ...args);
+  }
+};
+
 const app = express();
 
 // Validate and parse PORT
@@ -101,6 +120,17 @@ const apiLimiter = rateLimit({
 // Apply rate limiting to API routes
 app.use('/api/', apiLimiter);
 
+// Debug: Request logging middleware for API requests
+app.use('/api/', (req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+    DEBUG.log('REQUEST', `${req.method} ${req.path}`, `| IP: ${ip}`, `| Status: ${res.statusCode}`, `| ${duration}ms`);
+  });
+  next();
+});
+
 // Standard middleware
 app.use(express.json({ limit: '10kb' })); // Limit body size
 
@@ -160,17 +190,16 @@ let isFetching = false;
 function ensureScreenshotsDirExists() {
   if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
-    console.log(`Created screenshots directory: ${SCREENSHOTS_DIR}`);
+    DEBUG.log('SCREENSHOT', `Created directory: ${SCREENSHOTS_DIR}`);
   }
 }
 
 async function initBrowser() {
   if (!browser) {
-    // Chrome launch options for better compatibility in various environments
     const launchOptions = {
       headless: true,
       args: [
-        '--no-sandbox', 
+        '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
@@ -182,12 +211,15 @@ async function initBrowser() {
       ]
     };
 
+    DEBUG.log('BROWSER', 'Initializing Puppeteer browser...');
+
     try {
       browser = await puppeteer.launch(launchOptions);
+      DEBUG.log('BROWSER', 'Browser launched successfully (bundled Chrome)');
     } catch (error) {
-      console.error('Failed to launch browser with bundled Chrome:', error.message);
-      
-      // Try to find and use system Chrome as fallback
+      DEBUG.error('BROWSER', 'Failed to launch bundled Chrome:', error.message);
+      DEBUG.log('BROWSER', 'Attempting fallback to system Chrome/Chromium...');
+
       const systemChromePaths = [
         '/usr/bin/google-chrome',
         '/usr/local/bin/google-chrome',
@@ -195,7 +227,7 @@ async function initBrowser() {
         '/usr/bin/chromium-browser',
         '/usr/bin/chromium'
       ];
-      
+
       let executablePath = null;
       for (const chromePath of systemChromePaths) {
         if (fs.existsSync(chromePath)) {
@@ -203,14 +235,16 @@ async function initBrowser() {
           break;
         }
       }
-      
+
       if (executablePath) {
-        console.log(`Attempting to use system Chrome at: ${executablePath}`);
+        DEBUG.log('BROWSER', `Using system Chrome at: ${executablePath}`);
         browser = await puppeteer.launch({
           ...launchOptions,
           executablePath
         });
+        DEBUG.log('BROWSER', 'Browser launched successfully (system Chrome)');
       } else {
+        DEBUG.error('BROWSER', 'No Chrome/Chromium executable found in:', systemChromePaths.join(', '));
         throw new Error('Failed to launch browser: No Chrome/Chromium executable found. Error code 2 typically indicates missing browser binary or dependencies.');
       }
     }
@@ -221,31 +255,32 @@ async function initBrowser() {
 // Take a screenshot of the server's own web UI and save as BMP
 async function saveScreenshotAsBmp() {
   let screenshotPage = null;
+  const startTime = Date.now();
   try {
+    DEBUG.log('SCREENSHOT', 'Starting screenshot capture...');
     ensureScreenshotsDirExists();
-    
+
     const browserInstance = await initBrowser();
     screenshotPage = await browserInstance.newPage();
-    
-    // Set viewport to 960x640 for capture
+    DEBUG.log('SCREENSHOT', 'New page opened, setting viewport 960x640');
+
     await screenshotPage.setViewport({ width: 960, height: 640 });
-    
-    // Navigate to the server's own web UI
-    await screenshotPage.goto(`http://localhost:${PORT}`, { 
+
+    DEBUG.log('SCREENSHOT', `Navigating to http://localhost:${PORT}...`);
+    await screenshotPage.goto(`http://localhost:${PORT}`, {
       waitUntil: 'networkidle2',
-      timeout: 30000 
+      timeout: 30000
     });
-    
-    // Wait for weather data to load in the UI
+
+    DEBUG.log('SCREENSHOT', 'Waiting for weather grid to load...');
     await screenshotPage.waitForFunction(() => {
       const grid = document.getElementById('weather-grid');
       return grid && grid.children.length > 0;
     }, { timeout: 15000 });
-    
-    // Small delay to ensure rendering is complete
+
     await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Take screenshot as PNG buffer
+    DEBUG.log('SCREENSHOT', 'Capturing PNG screenshot...');
+
     const pngBuffer = await screenshotPage.screenshot({ fullPage: false });
     
     await screenshotPage.close();
@@ -280,16 +315,17 @@ async function saveScreenshotAsBmp() {
       height: height
     });
     
-    // Save BMP file
     const bmpPath = path.join(SCREENSHOTS_DIR, 'current.bmp');
     fs.writeFileSync(bmpPath, bmpData.data);
-    
-    console.log(`Screenshot saved to: ${bmpPath} (server UI captured at ${width}x${height})`);
+    const duration = Date.now() - startTime;
+
+    DEBUG.log('SCREENSHOT', `Saved to ${bmpPath} | ${width}x${height} | ${(bmpData.data.length / 1024).toFixed(1)} KB | ${duration}ms total`);
   } catch (error) {
     if (screenshotPage) {
       await screenshotPage.close().catch(() => {});
     }
-    console.error('Error saving screenshot:', error.message);
+    DEBUG.error('SCREENSHOT', error.message);
+    DEBUG.error('SCREENSHOT', 'Stack:', error.stack);
   }
 }
 
@@ -305,14 +341,15 @@ function getHoursRemainingInDay() {
 // Scrape hourly forecast data from a specific AccuWeather URL
 async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
   let page = null;
+  const pageLabel = isTomorrow ? 'tomorrow' : 'today';
+  const startTime = Date.now();
   try {
+    DEBUG.log('SCRAPE', `[${pageLabel}] Opening new page...`);
     page = await browserInstance.newPage();
-    
-    // Set user agent and viewport to avoid blocking
+
     await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     await page.setViewport({ width: 1920, height: 1080 });
-    
-    // Set extra headers to appear more like a real browser
+
     await page.setExtraHTTPHeaders({
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -320,17 +357,17 @@ async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
       'Connection': 'keep-alive',
       'Upgrade-Insecure-Requests': '1'
     });
-    
-    // Navigate to AccuWeather page
-    await page.goto(url, { 
+
+    DEBUG.log('SCRAPE', `[${pageLabel}] Navigating to ${url}...`);
+    await page.goto(url, {
       waitUntil: 'networkidle2',
-      timeout: 60000 
+      timeout: 60000
     });
 
-    // Wait a bit for dynamic content to load
+    DEBUG.log('SCRAPE', `[${pageLabel}] Page loaded, waiting 3s for dynamic content...`);
     await new Promise(resolve => setTimeout(resolve, 3000));
 
-    // Wait for the hourly forecast data to load - try multiple selectors with longer timeout
+    DEBUG.log('SCRAPE', `[${pageLabel}] Waiting for hourly forecast selectors (timeout 30s)...`);
     try {
       await page.waitForFunction(() => {
         return document.querySelector('.hourly-card') || 
@@ -342,10 +379,10 @@ async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
                document.querySelector('[class*="Hourly"]');
       }, { timeout: 30000 });
     } catch (waitError) {
-      // If waiting fails, try to continue anyway - maybe the data is already there
-      console.warn('Wait for selectors timed out, attempting to extract data anyway...');
+      DEBUG.warn('SCRAPE', `[${pageLabel}] Selector wait timed out: ${waitError.message}. Attempting extraction anyway...`);
     }
 
+    DEBUG.log('SCRAPE', `[${pageLabel}] Extracting location name and forecast data...`);
     // Extract the city/location name from the page (only for first page)
     let locationName = null;
     if (!isTomorrow) {
@@ -610,6 +647,9 @@ async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
       }).filter(hour => hour.temperature !== null);
     }, isTomorrow);
 
+    const duration = Date.now() - startTime;
+    DEBUG.log('SCRAPE', `[${pageLabel}] Extracted ${forecastData.length} hours | Location: ${locationName || 'N/A'} | ${duration}ms`);
+
     await page.close();
 
     return {
@@ -620,46 +660,46 @@ async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
     if (page) {
       await page.close().catch(() => {});
     }
+    DEBUG.error('SCRAPE', `[${pageLabel}] ${error.message}`);
+    DEBUG.error('SCRAPE', 'Stack:', error.stack);
     throw error;
   }
 }
 
 // Scrape weather data from AccuWeather
 async function scrapeWeatherData() {
+  const startTime = Date.now();
   try {
+    DEBUG.log('WEATHER', '========== Fetching weather data ==========');
     const browserInstance = await initBrowser();
-    
-    // Check if we need to fetch tomorrow's data
+
     const hoursRemaining = getHoursRemainingInDay();
     const shouldFetchTomorrow = hoursRemaining < TOMORROW_FETCH_THRESHOLD_HOURS;
-    
-    console.log(`Hours remaining in today: ${hoursRemaining.toFixed(1)}`);
-    console.log(`Should fetch tomorrow's data: ${shouldFetchTomorrow}`);
-    
-    // Scrape today's hourly forecast
-    console.log('Scraping today\'s hourly forecast...');
+
+    DEBUG.log('WEATHER', `Hours remaining today: ${hoursRemaining.toFixed(1)} | Fetch tomorrow: ${shouldFetchTomorrow}`);
+
+    DEBUG.log('WEATHER', 'Scraping today\'s hourly forecast...');
     const todayResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_URL, false);
     
     let allForecastData = todayResult.forecastData;
     const locationName = todayResult.locationName;
     
-    // If less than 12 hours remaining in today, also fetch tomorrow's data
     if (shouldFetchTomorrow) {
-      console.log('Less than 12 hours remaining in today, fetching tomorrow\'s hourly forecast...');
+      DEBUG.log('WEATHER', 'Fetching tomorrow\'s hourly forecast...');
       try {
         const tomorrowResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_TOMORROW_URL, true);
-        
+
         if (tomorrowResult.forecastData.length > 0) {
-          // Combine today's and tomorrow's data, avoiding duplicates
           const existingDatetimes = new Set(allForecastData.map(h => h.datetime));
           const newTomorrowData = tomorrowResult.forecastData.filter(h => !existingDatetimes.has(h.datetime));
           allForecastData = [...allForecastData, ...newTomorrowData];
-          
-          console.log(`Added ${newTomorrowData.length} hours from tomorrow's forecast`);
+
+          DEBUG.log('WEATHER', `Merged ${newTomorrowData.length} hours from tomorrow's forecast`);
+        } else {
+          DEBUG.warn('WEATHER', 'Tomorrow\'s forecast returned 0 hours');
         }
       } catch (tomorrowError) {
-        console.error('Error fetching tomorrow\'s data:', tomorrowError.message);
-        // Continue with today's data only
+        DEBUG.error('WEATHER', 'Tomorrow fetch failed:', tomorrowError.message);
       }
     }
     
@@ -674,21 +714,18 @@ async function scrapeWeatherData() {
     // Limit to 16 hours total
     allForecastData = allForecastData.slice(0, 16);
 
-    // Use scraped location or fallback to URL-based name
     const scrapedLocation = locationName || 'Unknown Location';
+    const totalDuration = Date.now() - startTime;
 
-    // Debug: Display scraped temperatures in command line
-    console.log('\n========== SCRAPED TEMPERATURES ==========');
-    console.log(`Location: ${scrapedLocation}`);
-    console.log(`Timestamp: ${new Date().toISOString()}`);
-    console.log(`Found ${allForecastData.length} hourly forecasts:\n`);
+    DEBUG.log('WEATHER', '---------- Scraped temperatures ----------');
+    DEBUG.log('WEATHER', `Location: ${scrapedLocation} | ${allForecastData.length} hours | ${totalDuration}ms total`);
     allForecastData.forEach((hour, index) => {
       const date = new Date(hour.datetime);
       const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
       const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
-      console.log(`  ${index + 1}. ${dateStr} ${timeStr}: ${hour.temperature}°${hour.temperatureUnit} - ${hour.iconPhrase} (Precip: ${hour.precipitation}%)`);
+      DEBUG.log('WEATHER', `  ${index + 1}. ${dateStr} ${timeStr}: ${hour.temperature}°${hour.temperatureUnit} - ${hour.iconPhrase} (Precip: ${hour.precipitation}%)`);
     });
-    console.log('===========================================\n');
+    DEBUG.log('WEATHER', '==========================================');
 
     return {
       location: scrapedLocation,
@@ -702,28 +739,33 @@ async function scrapeWeatherData() {
 // Fetch and cache weather data
 async function updateWeatherData() {
   if (isFetching) {
-    console.log('Weather data fetch already in progress, skipping...');
+    DEBUG.log('CACHE', 'Fetch already in progress, skipping duplicate update');
     return;
   }
 
   isFetching = true;
-  console.log(`\n[${new Date().toISOString()}] Starting scheduled weather data update...`);
+  const updateStart = Date.now();
+  DEBUG.log('CACHE', '---------- Starting weather data update ----------');
 
   try {
     const data = await scrapeWeatherData();
     cachedWeatherData = data;
     lastFetchTime = new Date();
-    console.log(`[${lastFetchTime.toISOString()}] Weather data cache updated successfully.`);
-    console.log(`Next update scheduled in ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes.`);
-    
-    // Take screenshot of the server's own UI after data is cached
-    console.log('Taking screenshot of server UI...');
+    const updateDuration = Date.now() - updateStart;
+
+    DEBUG.log('CACHE', `Cache updated | ${data.forecast.length} hours | ${updateDuration}ms`);
+    DEBUG.log('CACHE', `Next refresh in ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
+
+    DEBUG.log('CACHE', 'Triggering screenshot capture...');
     await saveScreenshotAsBmp();
+    DEBUG.log('CACHE', '---------- Update complete ----------');
   } catch (error) {
-    console.error(`[${new Date().toISOString()}] Error updating weather data:`, error.message);
-    // Keep the old cached data if available
+    DEBUG.error('CACHE', error.message);
+    DEBUG.error('CACHE', 'Stack:', error.stack);
     if (cachedWeatherData) {
-      console.log('Using previously cached data.');
+      DEBUG.log('CACHE', 'Falling back to previously cached data');
+    } else {
+      DEBUG.error('CACHE', 'No cached data available');
     }
   } finally {
     isFetching = false;
@@ -732,24 +774,21 @@ async function updateWeatherData() {
 
 // Start the hourly data refresh interval
 function startHourlyDataRefresh() {
-  // Perform initial fetch
   updateWeatherData();
 
-  // Schedule hourly updates
   setInterval(() => {
     updateWeatherData();
   }, DATA_REFRESH_INTERVAL);
 
-  console.log(`Hourly data refresh scheduled (every ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes).`);
+  DEBUG.log('REFRESH', `Scheduled every ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
 }
 
 // Endpoint to get hourly forecast
 app.get('/api/hourly-forecast', async (req, res) => {
   try {
-    // If we have cached data, return it
     if (cachedWeatherData) {
       const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime.getTime()) / 1000 / 60) : 0;
-      console.log(`[${new Date().toISOString()}] Serving cached weather data (age: ${cacheAge} minutes)`);
+      DEBUG.log('API', `Cache HIT | age: ${cacheAge}m | ${cachedWeatherData.forecast.length} hours`);
       return res.json({
         ...cachedWeatherData,
         cachedAt: lastFetchTime?.toISOString(),
@@ -757,19 +796,18 @@ app.get('/api/hourly-forecast', async (req, res) => {
       });
     }
 
-    // If no cached data and not currently fetching, fetch now
     if (!isFetching) {
+      DEBUG.log('API', 'Cache MISS - triggering fetch');
       await updateWeatherData();
     } else {
-      // Wait for the current fetch to complete
-      console.log('Waiting for ongoing fetch to complete...');
+      DEBUG.log('API', 'Cache MISS - waiting for ongoing fetch...');
       while (isFetching) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
-    // Return cached data after fetch
     if (cachedWeatherData) {
+      DEBUG.log('API', `Serving freshly fetched data | ${cachedWeatherData.forecast.length} hours`);
       return res.json({
         ...cachedWeatherData,
         cachedAt: lastFetchTime?.toISOString(),
@@ -779,13 +817,11 @@ app.get('/api/hourly-forecast', async (req, res) => {
 
     throw new Error('Failed to fetch weather data. Please try again later.');
   } catch (error) {
-    // Log detailed error server-side for debugging
-    console.error('Error in /api/hourly-forecast:', error.message);
-    console.error('Stack trace:', error.stack);
-    
-    // Return generic error message to clients (prevents information leakage)
-    res.status(500).json({ 
-      error: 'Failed to fetch weather data. Please try again later.' 
+    DEBUG.error('API', error.message);
+    DEBUG.error('API', 'Stack:', error.stack);
+
+    res.status(500).json({
+      error: 'Failed to fetch weather data. Please try again later.'
     });
   }
 });
@@ -797,16 +833,28 @@ app.get('/', (req, res) => {
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
+  DEBUG.log('SHUTDOWN', 'Received SIGINT, closing browser...');
   if (browser) {
     await browser.close();
+    DEBUG.log('SHUTDOWN', 'Browser closed');
   }
   process.exit(0);
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log('Scraping AccuWeather website for weather data...');
-  
+  DEBUG.log('STARTUP', '========================================');
+  DEBUG.log('STARTUP', `Server running on http://localhost:${PORT}`);
+  DEBUG.log('STARTUP', `Node.js version: ${process.version}`);
+  DEBUG.log('STARTUP', `PID: ${process.pid}`);
+  DEBUG.log('STARTUP', `Environment: ${process.env.NODE_ENV || 'development'}`);
+  DEBUG.log('STARTUP', `CORS allowed origins: ${allowedOrigins.join(', ')}`);
+  DEBUG.log('STARTUP', 'Rate limit: 100 requests per 900s (15 min)');
+  DEBUG.log('STARTUP', `Data refresh interval: ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
+  DEBUG.log('STARTUP', `Screenshots directory: ${SCREENSHOTS_DIR}`);
+  DEBUG.log('STARTUP', `AccuWeather URL: ${ACCUWEATHER_URL}`);
+  DEBUG.log('STARTUP', '========================================');
+  DEBUG.log('STARTUP', 'Scraping AccuWeather website for weather data...');
+
   // Start the hourly data refresh
   startHourlyDataRefresh();
 });
