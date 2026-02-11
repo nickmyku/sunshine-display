@@ -112,6 +112,7 @@ Example `/api/hourly-forecast` response:
 5. API serves cached data with cache metadata.
 6. Server refreshes every 60 minutes.
 7. After each refresh, server captures the app UI and saves `screenshots/current.bmp`.
+4. **Screenshot Capture**: After each data refresh, the server captures a BMP screenshot of its own UI for external display purposes.
 
 ## Scripts
 
@@ -175,6 +176,12 @@ Example crontab entry for auto-start on boot (adjust path as needed):
 ```bash
 @reboot sleep 30 && /path/to/project/scripts/start.sh > /dev/tty1 2>&1
 ```
+(to determine the correct terminal to stream the output to run the "tty" command, in this case it returned "/dev/tty1")
+
+## Notes
+
+- Location for Culver City, CA is hardcoded (ZIP: 90232)
+- Data is cached and refreshed every hour for performance
 
 ## Limitations
 
