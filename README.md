@@ -47,6 +47,29 @@ A web application that displays hourly temperature and precipitation forecasts f
 4. **Open in Browser**
    Navigate to `http://localhost:3000`
 
+## Raspberry Pi: Start Server on Boot
+
+If the server is already installed and working, run:
+
+```bash
+sudo ./scripts/setup-raspi-autostart.sh
+```
+
+This script creates a `systemd` service named `accuweather-server`, enables it at boot, and starts it immediately.
+
+Useful commands:
+
+```bash
+sudo systemctl status accuweather-server.service
+sudo journalctl -u accuweather-server.service -f
+```
+
+If your app is in a different directory or should run as another user:
+
+```bash
+sudo ./scripts/setup-raspi-autostart.sh /path/to/app your-username
+```
+
 ## Project Structure
 
 ```
@@ -56,6 +79,9 @@ A web application that displays hourly temperature and precipitation forecasts f
 │   ├── styles.css         # Styling with day/night themes
 │   ├── app.js             # Frontend JavaScript
 │   └── favicon.ico        # Site icon
+├── scripts/
+│   ├── generate-eink-screenshot.js
+│   └── setup-raspi-autostart.sh
 ├── screenshots/           # Auto-generated UI screenshots (BMP format)
 ├── package.json           # Dependencies and scripts
 ├── .env.example           # Environment variables template
