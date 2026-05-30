@@ -238,6 +238,31 @@ header h2 {
     color: white;
 }
 
+.city-select-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.city-select {
+    min-width: 180px;
+    padding: 8px 12px;
+    border: 2px solid #f0f0f0;
+    border-radius: 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #666;
+    background: #fff;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.city-select:focus {
+    outline: none;
+    border-color: #2196F3;
+    box-shadow: 0 2px 4px rgba(33, 150, 243, 0.3);
+}
+
 .cards-count-container {
     display: flex;
     align-items: center;
@@ -357,6 +382,19 @@ body.eink .unit-toggle label:hover {
     color: #000;
 }
 
+body.eink .city-select {
+    border-color: #000;
+    color: #000;
+    background: #fff;
+    box-shadow: none;
+    transition: none;
+}
+
+body.eink .city-select:focus {
+    border-color: #000;
+    box-shadow: none;
+}
+
 body.eink .cards-count-input {
     border-color: #000;
     color: #000;
@@ -399,9 +437,14 @@ body.eink .weather-card.night .temperature {
         grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     }
 
+    .city-select-container,
     .cards-count-container {
         width: 100%;
         justify-content: center;
+    }
+
+    .city-select {
+        flex: 1;
     }
 
     .refresh-btn {

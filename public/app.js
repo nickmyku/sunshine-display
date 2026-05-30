@@ -3,6 +3,10 @@ let forecastData = [];
 
 const TIME_FORMAT_STORAGE_KEY = 'timeFormat';
 const DISPLAY_MODE_STORAGE_KEY = 'displayMode';
+const CITY_STORAGE_KEY = 'selectedCity';
+
+let availableCities = [];
+let defaultCityId = 'scottsdale';
 
 // Get current temperature unit (default to Celsius)
 function getSelectedUnit() {
@@ -19,6 +23,41 @@ function getSelectedTimeFormat() {
 function getSelectedDisplayMode() {
     const selected = document.querySelector('input[name="display-mode"]:checked');
     return selected && selected.value === 'color' ? 'color' : 'eink';
+}
+
+function getSelectedCityId() {
+    const citySelect = document.getElementById('city-select');
+    if (!citySelect || !citySelect.value) {
+        return defaultCityId;
+    }
+    return citySelect.value;
+}
+
+function loadSavedCityId() {
+    try {
+        const value = localStorage.getItem(CITY_STORAGE_KEY);
+        if (value && availableCities.some((city) => city.id === value)) {
+            return value;
+        }
+    } catch {
+        // Ignore storage errors (e.g., blocked in private mode)
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    const cityFromUrl = params.get('city');
+    if (cityFromUrl && availableCities.some((city) => city.id === cityFromUrl)) {
+        return cityFromUrl;
+    }
+
+    return defaultCityId;
+}
+
+function saveSelectedCityId(cityId) {
+    try {
+        localStorage.setItem(CITY_STORAGE_KEY, cityId);
+    } catch {
+        // Ignore storage errors (e.g., blocked in private mode)
+    }
 }
 
 function loadSavedTimeFormat() {
@@ -220,7 +259,8 @@ async function fetchWeather() {
     containerEl.style.display = 'none';
 
     try {
-        const response = await fetch('/api/hourly-forecast');
+        const cityId = getSelectedCityId();
+        const response = await fetch(`/api/hourly-forecast?city=${encodeURIComponent(cityId)}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -332,12 +372,63 @@ function initRefreshButton() {
     });
 }
 
+function populateCitySelect() {
+    const citySelect = document.getElementById('city-select');
+    if (!citySelect) return;
+
+    citySelect.innerHTML = '';
+    availableCities.forEach((city) => {
+        const option = document.createElement('option');
+        option.value = city.id;
+        option.textContent = city.name;
+        citySelect.appendChild(option);
+    });
+
+    citySelect.value = loadSavedCityId();
+}
+
+async function loadCities() {
+    const response = await fetch('/api/cities');
+    if (!response.ok) {
+        throw new Error('Failed to load city list');
+    }
+
+    const data = await response.json();
+    availableCities = Array.isArray(data.cities) ? data.cities : [];
+    defaultCityId = data.defaultCityId || 'scottsdale';
+}
+
+function initCitySelect() {
+    const citySelect = document.getElementById('city-select');
+    if (!citySelect) return;
+
+    populateCitySelect();
+
+    citySelect.addEventListener('change', () => {
+        const cityId = getSelectedCityId();
+        saveSelectedCityId(cityId);
+        fetchWeather();
+    });
+}
+
 // Fetch weather on page load and initialize controls
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initUnitToggle();
     initTimeToggle();
     initDisplayModeToggle();
     initCardsCountInput();
     initRefreshButton();
-    fetchWeather();
+
+    try {
+        await loadCities();
+        initCitySelect();
+        fetchWeather();
+    } catch (error) {
+        console.error('Error loading cities:', error);
+        const errorEl = document.getElementById('error');
+        const loadingEl = document.getElementById('loading');
+        loadingEl.style.display = 'none';
+        errorEl.textContent = 'Failed to load city list. Please refresh the page.';
+        errorEl.style.display = 'block';
+    }
 });

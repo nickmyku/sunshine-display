@@ -167,10 +167,34 @@ app.use(express.static(path.join(__dirname, 'public'), {
 // Serve screenshots directory as static files
 app.use('/screenshots', express.static(SCREENSHOTS_DIR));
 
-// AccuWeather URL for Culver City hourly forecast
-const ACCUWEATHER_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093';
-// AccuWeather URL for tomorrow's hourly forecast
-const ACCUWEATHER_TOMORROW_URL = 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093?day=2';
+// Supported cities and their AccuWeather hourly forecast URLs
+const CITIES = {
+  scottsdale: {
+    id: 'scottsdale',
+    name: 'Scottsdale, AZ',
+    accuWeatherUrl: 'https://www.accuweather.com/en/us/scottsdale/85251/hourly-weather-forecast/331798',
+    accuWeatherTomorrowUrl: 'https://www.accuweather.com/en/us/scottsdale/85251/hourly-weather-forecast/331798?day=2'
+  },
+  'culver-city': {
+    id: 'culver-city',
+    name: 'Culver City, CA',
+    accuWeatherUrl: 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093',
+    accuWeatherTomorrowUrl: 'https://www.accuweather.com/en/us/culver-city/90232/hourly-weather-forecast/332093?day=2'
+  }
+};
+
+const DEFAULT_CITY_ID = 'scottsdale';
+
+function resolveCityId(cityId) {
+  if (cityId && CITIES[cityId]) {
+    return cityId;
+  }
+  return DEFAULT_CITY_ID;
+}
+
+function getCityConfig(cityId) {
+  return CITIES[resolveCityId(cityId)];
+}
 
 // Threshold for fetching tomorrow's data (hours remaining in day)
 const TOMORROW_FETCH_THRESHOLD_HOURS = 12;
@@ -181,10 +205,9 @@ const DATA_REFRESH_INTERVAL = 60 * 60 * 1000;
 // Initialize browser instance (reused for better performance)
 let browser = null;
 
-// Cached weather data
-let cachedWeatherData = null;
-let lastFetchTime = null;
-let isFetching = false;
+// Per-city cached weather data
+const cityCaches = {};
+const cityFetching = {};
 
 // Ensure screenshots directory exists
 function ensureScreenshotsDirExists() {
@@ -267,7 +290,7 @@ async function saveScreenshotAsBmp() {
     await screenshotPage.setViewport({ width: 960, height: 640 });
 
     DEBUG.log('SCREENSHOT', `Navigating to http://localhost:${PORT}...`);
-    await screenshotPage.goto(`http://localhost:${PORT}`, {
+    await screenshotPage.goto(`http://localhost:${PORT}/?city=${DEFAULT_CITY_ID}`, {
       waitUntil: 'networkidle2',
       timeout: 30000
     });
@@ -666,11 +689,12 @@ async function scrapeHourlyFromUrl(browserInstance, url, isTomorrow = false) {
   }
 }
 
-// Scrape weather data from AccuWeather
-async function scrapeWeatherData() {
+// Scrape weather data from AccuWeather for a specific city
+async function scrapeWeatherData(cityId) {
+  const city = getCityConfig(cityId);
   const startTime = Date.now();
   try {
-    DEBUG.log('WEATHER', '========== Fetching weather data ==========');
+    DEBUG.log('WEATHER', `========== Fetching weather data for ${city.name} ==========`);
     const browserInstance = await initBrowser();
 
     const hoursRemaining = getHoursRemainingInDay();
@@ -679,7 +703,7 @@ async function scrapeWeatherData() {
     DEBUG.log('WEATHER', `Hours remaining today: ${hoursRemaining.toFixed(1)} | Fetch tomorrow: ${shouldFetchTomorrow}`);
 
     DEBUG.log('WEATHER', 'Scraping today\'s hourly forecast...');
-    const todayResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_URL, false);
+    const todayResult = await scrapeHourlyFromUrl(browserInstance, city.accuWeatherUrl, false);
     
     let allForecastData = todayResult.forecastData;
     const locationName = todayResult.locationName;
@@ -687,7 +711,7 @@ async function scrapeWeatherData() {
     if (shouldFetchTomorrow) {
       DEBUG.log('WEATHER', 'Fetching tomorrow\'s hourly forecast...');
       try {
-        const tomorrowResult = await scrapeHourlyFromUrl(browserInstance, ACCUWEATHER_TOMORROW_URL, true);
+        const tomorrowResult = await scrapeHourlyFromUrl(browserInstance, city.accuWeatherTomorrowUrl, true);
 
         if (tomorrowResult.forecastData.length > 0) {
           const existingDatetimes = new Set(allForecastData.map(h => h.datetime));
@@ -728,6 +752,7 @@ async function scrapeWeatherData() {
     DEBUG.log('WEATHER', '==========================================');
 
     return {
+      cityId: city.id,
       location: scrapedLocation,
       forecast: allForecastData
     };
@@ -736,88 +761,120 @@ async function scrapeWeatherData() {
   }
 }
 
-// Fetch and cache weather data
-async function updateWeatherData() {
-  if (isFetching) {
-    DEBUG.log('CACHE', 'Fetch already in progress, skipping duplicate update');
+// Fetch and cache weather data for a specific city
+async function updateWeatherData(cityId = DEFAULT_CITY_ID) {
+  const resolvedCityId = resolveCityId(cityId);
+  const city = getCityConfig(resolvedCityId);
+
+  if (cityFetching[resolvedCityId]) {
+    DEBUG.log('CACHE', `[${city.name}] Fetch already in progress, skipping duplicate update`);
     return;
   }
 
-  isFetching = true;
+  cityFetching[resolvedCityId] = true;
   const updateStart = Date.now();
-  DEBUG.log('CACHE', '---------- Starting weather data update ----------');
+  DEBUG.log('CACHE', `---------- Starting weather data update for ${city.name} ----------`);
 
   try {
-    const data = await scrapeWeatherData();
-    cachedWeatherData = data;
-    lastFetchTime = new Date();
+    const data = await scrapeWeatherData(resolvedCityId);
+    cityCaches[resolvedCityId] = {
+      data,
+      lastFetchTime: new Date()
+    };
     const updateDuration = Date.now() - updateStart;
 
-    DEBUG.log('CACHE', `Cache updated | ${data.forecast.length} hours | ${updateDuration}ms`);
-    DEBUG.log('CACHE', `Next refresh in ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
+    DEBUG.log('CACHE', `[${city.name}] Cache updated | ${data.forecast.length} hours | ${updateDuration}ms`);
 
-    DEBUG.log('CACHE', 'Triggering screenshot capture...');
-    await saveScreenshotAsBmp();
-    DEBUG.log('CACHE', '---------- Update complete ----------');
+    if (resolvedCityId === DEFAULT_CITY_ID) {
+      DEBUG.log('CACHE', 'Triggering screenshot capture...');
+      await saveScreenshotAsBmp();
+    }
+
+    DEBUG.log('CACHE', `---------- Update complete for ${city.name} ----------`);
   } catch (error) {
-    DEBUG.error('CACHE', error.message);
+    DEBUG.error('CACHE', `[${city.name}] ${error.message}`);
     DEBUG.error('CACHE', 'Stack:', error.stack);
-    if (cachedWeatherData) {
-      DEBUG.log('CACHE', 'Falling back to previously cached data');
+    if (cityCaches[resolvedCityId]) {
+      DEBUG.log('CACHE', `[${city.name}] Falling back to previously cached data`);
     } else {
-      DEBUG.error('CACHE', 'No cached data available');
+      DEBUG.error('CACHE', `[${city.name}] No cached data available`);
     }
   } finally {
-    isFetching = false;
+    cityFetching[resolvedCityId] = false;
+  }
+}
+
+async function updateAllCitiesWeatherData() {
+  for (const cityId of Object.keys(CITIES)) {
+    await updateWeatherData(cityId);
   }
 }
 
 // Start the hourly data refresh interval
 function startHourlyDataRefresh() {
-  updateWeatherData();
+  updateAllCitiesWeatherData();
 
   setInterval(() => {
-    updateWeatherData();
+    updateAllCitiesWeatherData();
   }, DATA_REFRESH_INTERVAL);
 
   DEBUG.log('REFRESH', `Scheduled every ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
 }
 
+// Endpoint to list available cities
+app.get('/api/cities', (req, res) => {
+  res.json({
+    defaultCityId: DEFAULT_CITY_ID,
+    cities: Object.values(CITIES).map((city) => ({
+      id: city.id,
+      name: city.name
+    }))
+  });
+});
+
 // Endpoint to get hourly forecast
 app.get('/api/hourly-forecast', async (req, res) => {
+  const cityId = resolveCityId(req.query.city);
+  const city = getCityConfig(cityId);
+
   try {
-    if (cachedWeatherData) {
-      const cacheAge = lastFetchTime ? Math.round((Date.now() - lastFetchTime.getTime()) / 1000 / 60) : 0;
-      DEBUG.log('API', `Cache HIT | age: ${cacheAge}m | ${cachedWeatherData.forecast.length} hours`);
+    const cacheEntry = cityCaches[cityId];
+
+    if (cacheEntry?.data) {
+      const cacheAge = cacheEntry.lastFetchTime
+        ? Math.round((Date.now() - cacheEntry.lastFetchTime.getTime()) / 1000 / 60)
+        : 0;
+      DEBUG.log('API', `[${city.name}] Cache HIT | age: ${cacheAge}m | ${cacheEntry.data.forecast.length} hours`);
       return res.json({
-        ...cachedWeatherData,
-        cachedAt: lastFetchTime?.toISOString(),
+        ...cacheEntry.data,
+        cachedAt: cacheEntry.lastFetchTime?.toISOString(),
         cacheAgeMinutes: cacheAge
       });
     }
 
-    if (!isFetching) {
-      DEBUG.log('API', 'Cache MISS - triggering fetch');
-      await updateWeatherData();
+    if (!cityFetching[cityId]) {
+      DEBUG.log('API', `[${city.name}] Cache MISS - triggering fetch`);
+      await updateWeatherData(cityId);
     } else {
-      DEBUG.log('API', 'Cache MISS - waiting for ongoing fetch...');
-      while (isFetching) {
+      DEBUG.log('API', `[${city.name}] Cache MISS - waiting for ongoing fetch...`);
+      while (cityFetching[cityId]) {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
 
-    if (cachedWeatherData) {
-      DEBUG.log('API', `Serving freshly fetched data | ${cachedWeatherData.forecast.length} hours`);
+    const refreshedEntry = cityCaches[cityId];
+    if (refreshedEntry?.data) {
+      DEBUG.log('API', `[${city.name}] Serving freshly fetched data | ${refreshedEntry.data.forecast.length} hours`);
       return res.json({
-        ...cachedWeatherData,
-        cachedAt: lastFetchTime?.toISOString(),
+        ...refreshedEntry.data,
+        cachedAt: refreshedEntry.lastFetchTime?.toISOString(),
         cacheAgeMinutes: 0
       });
     }
 
     throw new Error('Failed to fetch weather data. Please try again later.');
   } catch (error) {
-    DEBUG.error('API', error.message);
+    DEBUG.error('API', `[${city.name}] ${error.message}`);
     DEBUG.error('API', 'Stack:', error.stack);
 
     res.status(500).json({
@@ -851,7 +908,8 @@ app.listen(PORT, () => {
   DEBUG.log('STARTUP', 'Rate limit: 100 requests per 900s (15 min)');
   DEBUG.log('STARTUP', `Data refresh interval: ${DATA_REFRESH_INTERVAL / 1000 / 60} minutes`);
   DEBUG.log('STARTUP', `Screenshots directory: ${SCREENSHOTS_DIR}`);
-  DEBUG.log('STARTUP', `AccuWeather URL: ${ACCUWEATHER_URL}`);
+  DEBUG.log('STARTUP', `Default city: ${getCityConfig(DEFAULT_CITY_ID).name} (${DEFAULT_CITY_ID})`);
+  DEBUG.log('STARTUP', `Supported cities: ${Object.values(CITIES).map((c) => c.name).join(', ')}`);
   DEBUG.log('STARTUP', '========================================');
   DEBUG.log('STARTUP', 'Scraping AccuWeather website for weather data...');
 
