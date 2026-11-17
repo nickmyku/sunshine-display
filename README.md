@@ -178,7 +178,7 @@ To run the server on a Raspberry Pi (assumes project is already installed):
 ./scripts/start.sh
 ```
 
-To run on startup, add to crontab: `crontab -e` then add:
+To run on startup, add to crontab: `sudo crontab -e` then add:
 ```
 @reboot sleep 30 && /home/pi-server/sunshine-display/scripts/start.sh > /dev/tty1 2>&1
 ```
